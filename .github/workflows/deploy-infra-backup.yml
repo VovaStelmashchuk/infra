@@ -9,8 +9,9 @@ env:
   REGISTRY: ghcr.io
   DOCKER_STACK_NAME: infra
   DEPLOY_USER: deploy
-  HOST: ${{ vars.HOST }} 
+  HOST: ${{ vars.HOST }}
   OWNER_NAME: vovastelmashchuk
+  UBUNTU_VERSION: ${{ vars.UBUNTU_VERSION || '22.04' }}
 
 jobs:
   build-and-push:
@@ -58,6 +59,8 @@ jobs:
         with:
           context: ${{ matrix.context }}
           push: true
+          build-args: |
+            UBUNTU_VERSION=${{ env.UBUNTU_VERSION }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_NAME }}/${{ matrix.image }}:latest
             ${{ env.REGISTRY }}/${{ env.OWNER_NAME }}/${{ matrix.image }}:${{ github.sha }}

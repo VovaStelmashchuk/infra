@@ -19,6 +19,8 @@ updates:
     directory: "/caddy-backup"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "ubuntu"
 
   - package-ecosystem: "docker"
     directory: "/grafana"
@@ -29,6 +31,8 @@ updates:
     directory: "/grafana-backup"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "ubuntu"
 
   - package-ecosystem: "docker"
     directory: "/telegraf"

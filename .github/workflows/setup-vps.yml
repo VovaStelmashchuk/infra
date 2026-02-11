@@ -1,0 +1,74 @@
+name: Setup VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      vps_ip:
+        description: "VPS IP address"
+        required: true
+        type: string
+      ssh_port:
+        description: "SSH port for the new configuration"
+        required: true
+        default: "2222"
+        type: string
+      deploy_user:
+        description: "Deploy user name"
+        required: true
+        default: "deploy"
+        type: string
+
+# Required GitHub configuration:
+#
+# Secrets (Settings > Secrets and variables > Actions > Secrets):
+#   VPS_SSH_PRIVATE_KEY  - SSH private key for root access to the new VPS
+#   DEPLOY_USER_PUBLIC_KEY - SSH public key to authorize for the deploy user
+#
+# These are used by Ansible to SSH into the VPS as root, install Docker,
+# create the deploy user, and configure SSH + firewall.
+
+jobs:
+  setup-vps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ inputs.vps_ip }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Create Ansible inventory
+        run: |
+          cat > /tmp/inventory << EOF
+          [vps-servers]
+          vps-server ansible_host=${{ inputs.vps_ip }} ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_rsa
+          EOF
+
+      - name: Run Ansible playbook
+        run: |
+          ansible-playbook -i /tmp/inventory setup_vps/ansible/install-docker.yml \
+            --extra-vars "ssh_port=${{ inputs.ssh_port }} deploy_user=${{ inputs.deploy_user }} deploy_user_public_key='${{ secrets.DEPLOY_USER_PUBLIC_KEY }}'"
+
+      - name: Display connection info
+        if: success()
+        run: |
+          echo "## VPS Setup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Connect to your VPS:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "ssh -p ${{ inputs.ssh_port }} ${{ inputs.deploy_user }}@${{ inputs.vps_ip }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next step: initialize Docker Swarm on the VPS:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "docker swarm init" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
