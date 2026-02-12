@@ -10,22 +10,13 @@ on:
       ssh_port:
         description: "SSH port for the new configuration"
         required: true
-        default: "2222"
+        default: "22"
         type: string
       deploy_user:
         description: "Deploy user name"
         required: true
         default: "deploy"
         type: string
-
-# Required GitHub configuration:
-#
-# Secrets (Settings > Secrets and variables > Actions > Secrets):
-#   VPS_SSH_PRIVATE_KEY  - SSH private key for root access to the new VPS
-#   DEPLOY_USER_PUBLIC_KEY - SSH public key to authorize for the deploy user
-#
-# These are used by Ansible to SSH into the VPS as root, install Docker,
-# create the deploy user, and configure SSH + firewall.
 
 jobs:
   setup-vps:

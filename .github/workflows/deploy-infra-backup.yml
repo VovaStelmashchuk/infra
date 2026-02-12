@@ -11,7 +11,7 @@ env:
   DEPLOY_USER: deploy
   HOST: ${{ vars.HOST }}
   OWNER_NAME: vovastelmashchuk
-  UBUNTU_VERSION: ${{ vars.UBUNTU_VERSION || '22.04' }}
+  UBUNTU_VERSION: "22.04"
 
 jobs:
   build-and-push:
