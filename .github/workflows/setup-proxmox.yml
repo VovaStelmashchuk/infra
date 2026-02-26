@@ -1,0 +1,65 @@
+name: Setup Proxmox VE
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_ip:
+        description: "Debian server IP address"
+        required: true
+        type: string
+      proxmox_hostname:
+        description: "Fully-qualified domain name for the Proxmox node (e.g. pve.example.com)"
+        required: true
+        type: string
+      ssh_port:
+        description: "SSH port"
+        required: true
+        default: "22"
+        type: string
+
+env:
+  ROOT_SSH_PRIVATE_KEY: ${{ secrets.ROOT_SSH_PRIVATE_KEY }}
+
+jobs:
+  setup-proxmox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ env.ROOT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ inputs.ssh_port }} -H ${{ inputs.server_ip }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Create Ansible inventory
+        run: |
+          cat > /tmp/inventory << EOF
+          [proxmox-servers]
+          proxmox-server ansible_host=${{ inputs.server_ip }} ansible_user=root ansible_port=${{ inputs.ssh_port }} ansible_ssh_private_key_file=~/.ssh/id_rsa
+          EOF
+
+      - name: Run Ansible playbook
+        run: |
+          ansible-playbook -i /tmp/inventory proxmox/ansible/install-proxmox.yml \
+            --extra-vars "proxmox_hostname=${{ inputs.proxmox_hostname }}"
+
+      - name: Display connection info
+        if: success()
+        run: |
+          echo "## Proxmox VE Setup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Access the Proxmox web UI:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "https://${{ inputs.server_ip }}:8006" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Hostname: \`${{ inputs.proxmox_hostname }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Login as \`root\` with the server's root password." >> $GITHUB_STEP_SUMMARY
