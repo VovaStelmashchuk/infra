@@ -13,10 +13,6 @@
 	}
 }
 
-dozzle.stelmashchuk.dev {
-        reverse_proxy * infra_dozzle:8080
-}
-
 compass.stelmashchuk.dev {
         reverse_proxy * infra_mongo-rs-viewer:8080
 }
@@ -72,21 +68,6 @@ grafana.stelmashchuk.dev {
         reverse_proxy * infra_grafana:3000
 }
 
-nu31.space {
-        reverse_proxy * nu31space_app:3000
-}
-
-prismo.nu31.space {
-        reverse_proxy * prismo-web-flasher_app:80
-}
-
-compass.nu31.space {
-        reverse_proxy * mongo-nu31-viewer:8080
-}
-
 maintenance.stelmashchuk.dev {
-        basic_auth {
-		Bob $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG
-	}
 	import maintenance
 }

@@ -1,29 +1,6 @@
 version: "3.8"
 
 services:
-  dozzle:
-    image: amir20/dozzle:latest
-    environment:
-      - DOZZLE_MODE=swarm
-      - DOZZLE_AUTH_PROVIDER=simple
-      - DOZZLE_ENABLE_ACTIONS=true
-      - DOZZLE_ENABLE_SHELL=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    secrets:
-      - source: dozzle_users
-        target: /data/users.yml
-    networks:
-      - reverse-proxy
-    deploy:
-      update_config:
-        order: start-first
-      restart_policy:
-        condition: on-failure
-        delay: 60s
-        max_attempts: 3
-        window: 60s
-
   cron:
     image: crazymax/swarm-cronjob:1.14.0
     volumes:
@@ -64,6 +41,8 @@ services:
 
   mongo-rs-init:
     image: mongo:8.2.3
+    links:
+      - mongo-rs-1
     command:
       - bash
       - -c
@@ -95,21 +74,8 @@ services:
       restart_policy:
         condition: on-failure
 
-  mongo-nu31-viewer:
-    image: haohanyang/compass-web:0.3.1
-    environment:
-      - CW_MONGO_URI=${MONGO_NU_31_URI}
-      - CW_BASIC_AUTH_USERNAME=${MONGO_NU31_VIEWER_USER}
-      - CW_BASIC_AUTH_PASSWORD=${MONGO_NU31_VIEWER_PASS}
-    networks:
-      - mongo-rs-net
-      - reverse-proxy
-    deploy:
-      restart_policy:
-        condition: on-failure
-  
   mongo-rs-backup-hourly:
-    image: ghcr.io/vovastelmashchuk/mongo-rs-backup:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/mongo-rs-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
     depends_on:
       - cron
@@ -117,7 +83,7 @@ services:
     environment:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - MONGO_URI=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
-      - S3_BUCKET=backups
+      - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
       - S3_FOLDER=mongo-rs-hourly
@@ -134,7 +100,7 @@ services:
         condition: none
 
   mongo-rs-backup-daily:
-    image: ghcr.io/vovastelmashchuk/mongo-rs-backup:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/mongo-rs-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
     depends_on:
       - cron
@@ -142,7 +108,7 @@ services:
     environment:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - MONGO_URI=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
-      - S3_BUCKET=backups
+      - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
       - S3_FOLDER=mongo-rs-daily
@@ -159,7 +125,7 @@ services:
         condition: none
 
   mongo-rs-backup-weekly:
-    image: ghcr.io/vovastelmashchuk/mongo-rs-backup:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/mongo-rs-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
     depends_on:
       - cron
@@ -167,7 +133,7 @@ services:
     environment:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - MONGO_URI=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
-      - S3_BUCKET=backups
+      - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
       - S3_FOLDER=mongo-rs-weekly
@@ -184,7 +150,7 @@ services:
         condition: none
 
   caddy-backup-daily:
-    image: ghcr.io/vovastelmashchuk/caddy-backup:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/caddy-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
     depends_on:
       - cron
@@ -192,12 +158,12 @@ services:
     environment:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - CADDY_DATA_DIR=/caddy_storage
-      - S3_BUCKET=backups
+      - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
       - S3_FOLDER=caddy-daliy
     volumes:
-      - /caddy_storage:/caddy_storage
+      - caddy-data:/caddy_storage
     deploy:
       mode: replicated
       replicas: 0
@@ -209,7 +175,7 @@ services:
         condition: none
 
   caddy:
-    image: ghcr.io/vovastelmashchuk/caddy:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/caddy:${GIT_COMMIT_SHA}
     dns:
       - 1.1.1.1
       - 8.8.8.8
@@ -219,7 +185,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /caddy_storage:/caddy_storage
+      - caddy-data:/caddy_storage
     environment:
       - TZ=UTC
     deploy:
@@ -231,7 +197,7 @@ services:
       - reverse-proxy
 
   grafana:
-    image: ghcr.io/vovastelmashchuk/grafana:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/grafana:${GIT_COMMIT_SHA}
     links:
       - mongo-rs-1
     volumes:
@@ -240,6 +206,7 @@ services:
       - TZ=UTC
       - GF_SECURITY_ADMIN_USER=${USERNAME}
       - GF_SECURITY_ADMIN_PASSWORD=${PASSWORD}
+      - GF_SERVER_ROOT_URL=https://grafana.stelmashchuk.dev
     deploy:
       update_config:
         order: start-first
@@ -250,7 +217,7 @@ services:
       - mongo-rs-net
 
   grafana-backup-daily:
-    image: ghcr.io/vovastelmashchuk/grafana-backup:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/grafana-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
     depends_on:
       - cron
@@ -258,7 +225,7 @@ services:
     environment:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - GRAFANA_DATA_DIR=/var/lib/grafana/grafana.db
-      - S3_BUCKET=backups
+      - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
       - S3_FOLDER=grafana-daily
@@ -275,7 +242,7 @@ services:
         condition: none
 
   telegraf:
-    image: ghcr.io/vovastelmashchuk/telegraf:${GIT_COMMIT_SHA:-latest}
+    image: ghcr.io/${OWNER_NAME}/telegraf:${GIT_COMMIT_SHA}
     hostname: "{{.Node.Hostname}}"
     networks:
       - mongo-rs-net
@@ -311,3 +278,4 @@ networks:
 volumes:
   mongodb-rs-1-data:
   grafana-data:
+  caddy-data:

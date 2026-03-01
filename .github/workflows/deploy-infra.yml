@@ -9,10 +9,18 @@ env:
   REGISTRY: ghcr.io
   DOCKER_STACK_NAME: infra
   HOST: ${{ vars.HOST }}
+  GIT_COMMIT_SHA: ${{ github.sha }}
   OWNER_NAME: vovastelmashchuk
-  ROOT_SSH_PRIVATE_KEY: ${{ secrets.ROOT_SSH_PRIVATE_KEY }}
   USERNAME: ${{ vars.USERNAME }}
   PASSWORD: ${{ secrets.PASSWORD }}
+
+  ROOT_SSH_PRIVATE_KEY: ${{ secrets.ROOT_SSH_PRIVATE_KEY }}
+  MONGO_RS_KEYFILE_CONTENT: ${{ secrets.MONGO_RS_KEYFILE_CONTENT }}
+
+  S3_BUCKET: backups
+  S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+  S3_ACCESS_KEY_ID: ${{ vars.S3_ACCESS_KEY_ID }}
+  S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
 
 jobs:
   build-and-push:
@@ -73,20 +81,17 @@ jobs:
 
       - name: Create env file
         run: |
-            {
-              echo "GIT_COMMIT_SHA=${{ github.sha }}"
-              echo "MONGO_URI=${{ secrets.MONGO_URI }}"
-              echo "USERNAME=${{ env.USERNAME }}"
-              echo "PASSWORD=${{ env.PASSWORD }}"
-              echo "S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}"
-              echo "S3_ACCESS_KEY_ID=${{ vars.S3_ACCESS_KEY_ID }}"
-              echo "S3_ENDPOINT=${{ vars.S3_ENDPOINT }}"
-              echo "MONGO_RS_KEYFILE_CONTENT=${{ secrets.MONGO_RS_KEYFILE_CONTENT }}"
-              echo "OWNER_NAME=${{ env.OWNER_NAME }}"
-              echo "MONGO_NU_31_URI=${{ secrets.MONGO_NU_31_URI }}"
-              echo "MONGO_NU31_VIEWER_USER=${{ vars.MONGO_NU31_VIEWER_USER }}"
-              echo "MONGO_NU31_VIEWER_PASS=${{ secrets.MONGO_NU31_VIEWER_PASS }}"
-            } > ./envfile
+            write_var() { printf "%s='%s'\n" "$1" "$(printenv "$1")" >> ./envfile; }
+            > ./envfile
+            write_var OWNER_NAME
+            write_var GIT_COMMIT_SHA
+            write_var USERNAME
+            write_var PASSWORD
+            write_var MONGO_RS_KEYFILE_CONTENT
+            write_var S3_BUCKET
+            write_var S3_SECRET_ACCESS_KEY
+            write_var S3_ACCESS_KEY_ID
+            write_var S3_ENDPOINT
 
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1
