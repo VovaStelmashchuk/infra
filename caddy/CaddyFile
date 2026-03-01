@@ -53,9 +53,7 @@ nest2d.stelmashchuk.dev {
 }
 
 kickstart.stelmashchuk.dev {
-        reverse_proxy * kickstart_app:3000 {
-                header_up X-Real-IP {remote_host}
-        }
+        redir https://velonuxt.stelmashchuk.dev{uri}
 }
 
 velonuxt.stelmashchuk.dev {
