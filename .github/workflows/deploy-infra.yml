@@ -10,7 +10,7 @@ env:
   DOCKER_STACK_NAME: infra
   HOST: ${{ vars.HOST }}
   GIT_COMMIT_SHA: ${{ github.sha }}
-  OWNER_NAME: nu31hackerspace
+  OWNER_NAME: vovastelmashchuk
   USERNAME: ${{ vars.USERNAME }}
   PASSWORD: ${{ secrets.PASSWORD }}
 
