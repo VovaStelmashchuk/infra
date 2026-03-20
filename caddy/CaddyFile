@@ -25,7 +25,7 @@ www.mixdrinks.org {
         redir https://mixdrinks.org{uri}
 }
 
-ypod.stelmashchuk.dev {
+stelmashchuk.dev {
         reverse_proxy * cv_app:3000
 }
 
