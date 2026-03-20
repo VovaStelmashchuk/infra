@@ -26,6 +26,10 @@ www.mixdrinks.org {
 }
 
 ypod.stelmashchuk.dev {
+        reverse_proxy * cv_app:3000
+}
+
+ypod.stelmashchuk.dev {
         reverse_proxy * ypod_app:3000 {
                 header_up X-Real-IP {remote_host}
         }
