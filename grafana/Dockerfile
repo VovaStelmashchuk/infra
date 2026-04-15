@@ -1,4 +1,4 @@
-FROM grafana/grafana:12.4.0-22081664032-ubuntu
+FROM grafana/grafana:13.0.0-ubuntu
 
 ENV GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=haohanyang-mongodb-datasource
 
