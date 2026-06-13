@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: maintenance
+  name: compass-web-kube
   namespace: infra
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
@@ -9,16 +9,16 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - maintenance.stelmashchuk.dev
-      secretName: maintenance-tls
+        - compass.kube.stelmashchuk.dev
+      secretName: compass-kube-tls
   rules:
-    - host: maintenance.stelmashchuk.dev
+    - host: compass.kube.stelmashchuk.dev
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: maintenance
+                name: compass-web
                 port:
-                  number: 80
+                  number: 8080

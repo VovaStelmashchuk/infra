@@ -11,21 +11,8 @@ spec:
     - hosts:
         - compass.stelmashchuk.dev
       secretName: compass-tls
-    - hosts:
-        - compass.kube.stelmashchuk.dev
-      secretName: compass-kube-tls
   rules:
     - host: compass.stelmashchuk.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: compass-web
-                port:
-                  number: 8080
-    - host: compass.kube.stelmashchuk.dev
       http:
         paths:
           - path: /

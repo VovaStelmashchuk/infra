@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: maintenance
+  name: maintenance-kube
   namespace: infra
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
@@ -9,10 +9,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - maintenance.stelmashchuk.dev
-      secretName: maintenance-tls
+        - maintenance.kube.stelmashchuk.dev
+      secretName: maintenance-kube-tls
   rules:
-    - host: maintenance.stelmashchuk.dev
+    - host: maintenance.kube.stelmashchuk.dev
       http:
         paths:
           - path: /

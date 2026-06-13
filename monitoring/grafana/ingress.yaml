@@ -11,21 +11,8 @@ spec:
     - hosts:
         - grafana.stelmashchuk.dev
       secretName: grafana-tls
-    - hosts:
-        - grafana.kube.stelmashchuk.dev
-      secretName: grafana-kube-tls
   rules:
     - host: grafana.stelmashchuk.dev
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: grafana
-                port:
-                  number: 3000
-    - host: grafana.kube.stelmashchuk.dev
       http:
         paths:
           - path: /
