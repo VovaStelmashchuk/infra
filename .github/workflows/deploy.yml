@@ -1,0 +1,109 @@
+name: Deploy Infra
+
+on:
+  push:
+    branches:
+      - "main"
+      - "migrate_to_kube"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  OWNER_NAME: vovastelmashchuk
+
+jobs:
+  # Build the custom images this repo owns and push them to GHCR, tagged with the
+  # commit SHA (and latest). Stock images (mongo, telegraf, compass-web, nginx) are
+  # pulled directly from upstream and are not built here.
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: grafana
+            context: ./monitoring/grafana
+          - image: mongo-rs-backup
+            context: ./backups/mongo
+          - image: grafana-backup
+            context: ./backups/grafana
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER_NAME }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER_NAME }}/${{ matrix.image }}:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: k3s
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Pin custom images to this commit
+        # Manifests reference our GHCR images as :latest for readability; pin them to
+        # the freshly built commit SHA so each deploy rolls out exactly what was built.
+        run: |
+          find . -name '*.yaml' -not -path './.github/*' -print0 \
+            | xargs -0 sed -i \
+              "s|ghcr.io/${OWNER_NAME}/\([a-z0-9-]*\):latest|ghcr.io/${OWNER_NAME}/\1:${{ github.sha }}|g"
+
+      - name: Create namespace
+        run: kubectl apply -f namespaces/
+
+      - name: Create infra secret
+        run: |
+          kubectl create secret generic secret \
+            --namespace infra \
+            --from-literal=username="${{ secrets.USERNAME }}" \
+            --from-literal=password="${{ secrets.PASSWORD }}" \
+            --from-literal=uri="mongodb://${{ secrets.USERNAME }}:${{ secrets.PASSWORD }}@mongo-0.mongo.infra.svc.cluster.local:27017/?replicaSet=rs0&authSource=admin" \
+            --from-literal=keyfile="${{ secrets.MONGO_RS_KEYFILE_CONTENT }}" \
+            --from-literal=endpoint="${{ secrets.S3_ENDPOINT }}" \
+            --from-literal=bucket="${{ secrets.S3_BUCKET }}" \
+            --from-literal=access-key-id="${{ secrets.S3_ACCESS_KEY_ID }}" \
+            --from-literal=secret-access-key="${{ secrets.S3_SECRET_ACCESS_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Generate Telegraf config ConfigMap
+        # Keeps telegraf.conf as the single source of truth.
+        run: |
+          kubectl create configmap telegraf-config \
+            --namespace infra \
+            --from-file=telegraf.conf=monitoring/telegraf/telegraf.conf \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f bootstrap/cert-manager/
+          kubectl apply -R \
+            -f mongo \
+            -f monitoring \
+            -f backups \
+            -f tools

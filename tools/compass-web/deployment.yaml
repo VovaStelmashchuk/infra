@@ -1,0 +1,39 @@
+# Web MongoDB viewer (compass-web), protected by basic auth. Served at
+# compass.stelmashchuk.dev.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compass-web
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compass-web
+  template:
+    metadata:
+      labels:
+        app: compass-web
+    spec:
+      containers:
+        - name: compass-web
+          image: haohanyang/compass-web:0.3.1
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: CW_MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: uri
+            - name: CW_BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: username
+            - name: CW_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: password

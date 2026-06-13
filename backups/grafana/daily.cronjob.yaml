@@ -1,0 +1,57 @@
+# Daily backup of grafana.db → S3 (folder grafana-daily). 06:00 UTC.
+# Mounts the same grafana-data PVC as the Grafana Deployment (read-only). On a
+# single node both pods can mount the ReadWriteOnce volume.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grafana-backup-daily
+  namespace: infra
+spec:
+  schedule: "0 6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: ghcr.io/vovastelmashchuk/grafana-backup:latest
+              command: ["/usr/local/bin/backup.sh"]
+              env:
+                - name: GRAFANA_DATA_DIR
+                  value: /var/lib/grafana/grafana.db
+                - name: S3_FOLDER
+                  value: grafana-daily
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: endpoint
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: bucket
+                - name: S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: access-key-id
+                - name: S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: secret-access-key
+              volumeMounts:
+                - name: grafana-data
+                  mountPath: /var/lib/grafana
+                  readOnly: true
+          volumes:
+            - name: grafana-data
+              persistentVolumeClaim:
+                claimName: grafana-data
+                readOnly: true

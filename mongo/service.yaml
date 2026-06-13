@@ -1,0 +1,17 @@
+# Headless Service: gives the StatefulSet pod a stable DNS name
+# mongo-0.mongo.infra.svc.cluster.local, which the replica set is initiated with.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: infra
+  labels:
+    app: mongo
+spec:
+  clusterIP: None
+  selector:
+    app: mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017

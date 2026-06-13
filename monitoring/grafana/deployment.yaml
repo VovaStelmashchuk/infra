@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: infra
+spec:
+  replicas: 1
+  # PVC is ReadWriteOnce; never run two grafana pods on top of the same volume.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        # grafana runs as uid/gid 472; fsGroup makes the local-path volume writable.
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: ghcr.io/vovastelmashchuk/grafana:latest
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: TZ
+              value: UTC
+            - name: GF_SERVER_ROOT_URL
+              value: https://grafana.stelmashchuk.dev
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: username
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: grafana-data

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: maintenance
+  namespace: infra
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - maintenance.stelmashchuk.dev
+      secretName: maintenance-tls
+  rules:
+    - host: maintenance.stelmashchuk.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: maintenance
+                port:
+                  number: 80

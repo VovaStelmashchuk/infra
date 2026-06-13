@@ -1,170 +1,101 @@
-# Infra for pet project
+# Infra
 
-We build real **uncloud** here.
+Shared cluster infrastructure for my pet projects, as Kubernetes manifests for a
+single-node **k3s** cluster. Smallest thing that works, with all the necessary pieces —
+no over-engineering.
 
-The project with all scripts for setup an infrastructure for simple pet project, without over engineering, but with all required components, such as backups for database, backup for reverse proxy etc.
+This repo owns **shared infrastructure only**: the `infra` namespace, MongoDB,
+monitoring (Grafana, Telegraf), backups, the maintenance page, and the shared
+cert-manager issuer. Applications (cv, nest2d, mixdrinks, ypod, velonuxt, …) live in
+their own repos and carry their own manifests, including their own ingress.
 
-The project prepares VPS for hosting docker stack by Ansible scripts. All infrastructure components deploy as docker services. Also configuration provides presetup docker networks. 
+> Migrated from Docker Swarm. The requirements the old stack encoded are preserved in
+> [`docs/migration-requirements.md`](docs/migration-requirements.md).
 
-So basicly you just rent any VPS or setup the ubunut server your self, and have it up and running for few minutes.
+## What runs here
 
-The project provides all infrastruture require to implement simple pet projects without over engineering. All setup of VPS done with infrastructure as code approatch which help you replicate the infra on any ubuntu server without pain.
+| Component | Kind | Notes |
+|---|---|---|
+| MongoDB | StatefulSet + headless Service | replica set `rs0`, single node, auth + keyfile |
+| Mongo RS init | Job | runs `rs.initiate` automatically (idempotent) |
+| Grafana | Deployment + PVC + Service + Ingress | `grafana.stelmashchuk.dev`, mongodb datasource |
+| Telegraf | DaemonSet | host metrics → Mongo `vps_metrics` |
+| compass-web | Deployment + Service + Ingress | `compass.stelmashchuk.dev`, Mongo web viewer |
+| maintenance | Deployment + Service + Ingress | `maintenance.stelmashchuk.dev`, static page |
+| Mongo backups | CronJobs (daily, weekly) | `mongodump` → S3 |
+| Grafana backup | CronJob (daily) | `grafana.db` → S3 |
+| cert-manager issuer | ClusterIssuer | Let's Encrypt via Traefik HTTP-01 |
 
-The infrastructure includes the following:
-- Docker Swarm
-- MongoDB replica set
-- Caddy reverse proxy
-- Grafana
-- Periodic backups for mongo, grafana, caddy config
+Ingress is **Traefik** (built into k3s); TLS is **cert-manager** + Let's Encrypt.
+Storage is the built-in **local-path** StorageClass.
 
-## Infrastructure components
+## Layout
 
-### Reverse proxy
+```
+namespaces/                  the `infra` namespace
+mongo/                       StatefulSet, headless Service, rs-init Job
+monitoring/grafana/          Dockerfile (plugin baked in) + manifests
+monitoring/telegraf/         telegraf.conf + DaemonSet (ConfigMap generated in CI)
+backups/mongo/               backup image + daily/weekly CronJobs
+backups/grafana/             backup image + daily CronJob
+tools/compass-web/           Mongo web viewer
+tools/maintenance/           static maintenance page
+bootstrap/                   one-time cluster setup (docs) + cert-manager issuer
+docs/                        migration notes
+.github/workflows/deploy.yml build images → GHCR, then kubectl apply on push to main
+```
 
-The project provides **caddy** as reverse proxy for handle SSL key generation and allow you to host few services on one VPS.
+Raw YAML for now; Kustomize (`kubectl apply -k`) will be introduced only if/when
+repetition warrants it. Not Helm.
 
-### Database
+## Deploy
 
-MongoDB is my database of choice. I believe it's the only data store which you need to build the project.
-I use the mongodb bucket for BLOB store, it make local infracture easy to handle, and the API for mongo bucket easy to work compare to S3 buckets.
+Push to `main`. The [deploy workflow](.github/workflows/deploy.yml):
+1. builds the custom images (`grafana`, `mongo-rs-backup`, `grafana-backup`) and pushes
+   them to GHCR tagged with the commit SHA;
+2. authenticates to the cluster with the base64 `KUBE_CONFIG` secret;
+3. pins the manifests' `:latest` GHCR references to the built SHA;
+4. creates the namespace, generates the Telegraf ConfigMap from `telegraf.conf`, and
+   `kubectl apply`s everything.
 
-MongoDB run in replica set with one node, the solution allow to use all mongo replica set feature as watch the collection.
+First-time cluster setup (k3s install, kubeconfig export, firewall, cert-manager) is in
+[`bootstrap/README.md`](bootstrap/README.md).
 
-Generate key for replica set (execute on server mathine)
+## Secrets
+
+The shared `secret` is dynamically generated during the GitHub Action CI from GitHub Secrets.
+You must configure the following secrets in your GitHub Repository Settings:
+- `USERNAME`
+- `PASSWORD`
+- `MONGO_RS_KEYFILE_CONTENT` (generate locally once via `openssl rand -base64 756`)
+- `S3_ENDPOINT`
+- `S3_BUCKET`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `KUBE_CONFIG` (base64 encoded admin kubeconfig)
+
+## Manual / one-time steps
+
+- **Cluster bootstrap** — see [`bootstrap/README.md`](bootstrap/README.md): k3s install,
+  kubeconfig → `KUBE_CONFIG`, Hetzner firewall, cert-manager install.
+- **Secrets** — Set up the required GitHub Secrets in your repository.
+- That's it. The replica set is initiated automatically by the `mongo-rs-init` Job; no
+  manual `rs.initiate`.
+
+## Restore from backup
+
+Backups are gzip archives in S3 (`mongo-rs-daily`, `mongo-rs-weekly`, `grafana-daily`).
 
 ```sh
-openssl rand -base64 756 | docker secret create mongodb-keyfile -
+# Mongo: restore a dump into the cluster (run from a machine with the connection URI).
+mongorestore --uri="mongodb://<user>:<pass>@<host>:27017/?replicaSet=rs0&authSource=admin" \
+  --drop --gzip --archive=mongodump-2026-06-13_03-30.gz
 ```
 
-### Periodic tasks
+## Security TODOs
 
-The `infra` stack has the cron executor `crazymax/swarm-cronjob` which is used for periodic backup database and caddy config
-
-### Backups
-
-The project provides periodic backups for mongo and caddy config.
-The Database backups each hour, each day, and each week, all backups can be stored in any S3 compatible storage.
-
-## Build & deploy
-
-For more details, take a look at [project github action](https://github.com/VovaStelmashchuk/infra/tree/main/.github/workflows)
-
-You can find all required environment variables and secrets for the project in the github action job `Create env file`. Also some secrets are provided as docker secrets, but I have been trying to get rid of docker secrets in the project.
-
-## Local development
-
-For local infrastructure use file `docker-stack.local.yml` - the file setup only mongo and mongo viewer
-
-The setup is tested only for MacOS with `colima`
-
-1. Start colima by command
-
-In case `qemu` is not installed on your machine, install it by command `brew install qemu`
-
-```bash
-colima start --network-address
-```
-
-2. Verify colima status
-
-```bash
-colima status
-```
-
-The command will return information about colima virtual machine, look to the line `INFO[0000] address:`
-Use the colima VM IP address to start the docker stack
-
-```bash
-docker swarm init --advertise-addr <IP address from the colima status command>
-```
-
-3. Run docker stack
-
-```bash
-docker stack deploy -c docker-stack.local.yml infra
-```
-
-The command will start the mongodb at port 27017 and mongo viewer on port 5000 into colima VM.
-
-Open http://<colima ip>:5000 to browse the mongo db.
-
-4. (Optional) Apply backup/snapshot of mongodb to your local environment
-
-Copy mongo backup file into docker container
-
-```bash
-docker cp /path/to/backup/test.archive mongo:/test.archive
-```
-
-Restore mongo from backup
-
-```bash
-docker exec -it <mongo container> mongorestore --uri mongodb://localhost:27017 --gzip --archive=test.archive
-```
-
-### Restore database from backup
-
-```
-mongorestore \
-  --host 167.235.52.168 \
-  --port 2017 \
-  --username <root_user_name> \
-  --password '<pass for root>' \
-  --authenticationDatabase admin \
-  --drop \
-  --gzip \
-  --archive=backup-15-00.gz
-```
-
-### Local mongo, restore from any backup file
-
-```
-mongorestore --uri="mongodb://0.0.0.0:27017/" --drop --gzip --db=mixdrinks --archive=hourly_mongodump-2025-05-29_13-00.gz
-```
-
-## Local infrastructure
-
-For the local infrastructure use the `docker-stack.local.yml`. This stack sets up a MongoDB Replica Set environment useful for local testing.
-
-### Services
-
-- **mongo-rs-1**: The primary MongoDB service running version 8.2.3.
-- **mongo-rs-init**: An oversized ephemeral container that waits for `mongo-rs-1` to be ready and initializes the Replica Set (`rs0`).
-- **mongo-rs-viewer**: A web-based MongoDB viewer (`haohanyang/compass-web`) exposed on port **5001**.
-
-### Usage
-
-To deploy the local stack:
-
-Add `192.168.64.2 mongo-rs-1` into `/etc/hosts` file
-
-```sh
-node local_deploy.js
-```
-
-Once deployed, you can access the MongoDB viewer at `http://<colima_ip>:5000`.
-Credentials for the viewer can be set in your environment variables (`USERNAME`, `PASSWORD`) or will default if not specified in the stack file (check `docker-stack.local.yml` for variable usage).
-
-
-### Grafana backup restore
-
-```sh
-docker service scale infra_grafana=0
-```
-
-```sh
-docker run --rm \
-  -v infra_grafana-data:/data \
-  -v "$(pwd)":/backup \
-  alpine \
-  sh -c "cp /backup/grafana.db /data/grafana.db"
-```
-
-```sh
-docker run --rm \
-  -v infra_grafana-data:/data \
-  alpine \
-  chown 472:472 /data/grafana.db
-```
-
-To create own infrastructure setup, fork the repository and update all need github action secrets and variables.
+Tracked, deliberately deferred (no over-engineering):
+- [ ] **Hetzner firewall** — restrict `:6443` (and `:22`) to known sources.
+- [ ] **Scoped deploy creds** — replace the admin `KUBE_CONFIG` with a ServiceAccount +
+      RBAC limited to the `infra` namespace.
+- [ ] **sealed-secrets** — move secret material into git, encrypted.

@@ -1,0 +1,61 @@
+# Initiates the replica set automatically (replaces the old mongo-rs-init Swarm
+# service and any manual rs.initiate step). Idempotent: if the set is already
+# initiated, rs.status() succeeds and we do nothing.
+#
+# Note: a Job's pod template is immutable. If you ever need to change this Job,
+# delete it first (kubectl delete job mongo-rs-init -n infra) before re-applying.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-rs-init
+  namespace: infra
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        app: mongo-rs-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: mongo:8.2.3
+          command:
+            - bash
+            - -c
+            - |
+              set -euo pipefail
+              HOST="mongo-0.mongo.infra.svc.cluster.local"
+              echo "Waiting for ${HOST} to accept connections..."
+              until mongosh --host "$HOST" --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; do
+                sleep 2
+              done
+              echo "Ensuring replica set rs0 is initiated..."
+              mongosh --host "$HOST" \
+                -u "$MONGO_INITDB_ROOT_USERNAME" \
+                -p "$MONGO_INITDB_ROOT_PASSWORD" \
+                --authenticationDatabase admin \
+                --quiet --eval '
+                  try {
+                    rs.status();
+                    print("Replica set already initiated.");
+                  } catch (e) {
+                    print("Initiating replica set...");
+                    rs.initiate({
+                      _id: "rs0",
+                      members: [{ _id: 0, host: "mongo-0.mongo.infra.svc.cluster.local:27017" }]
+                    });
+                  }
+                '
+              echo "Done."
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: password

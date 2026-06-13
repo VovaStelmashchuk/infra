@@ -6,36 +6,16 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/mongo-rs-backup"
+    directory: "/monitoring/grafana"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/caddy"
+    directory: "/backups/mongo"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/caddy-backup"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/grafana"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/grafana-backup"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/telegraf"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/backups/grafana"
     schedule:
       interval: "weekly"

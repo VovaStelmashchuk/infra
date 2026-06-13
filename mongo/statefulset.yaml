@@ -1,0 +1,75 @@
+# Single-node MongoDB replica set (rs0) with auth + keyfile enabled from first boot.
+#
+# The container starts as root so it can stage the replica-set keyfile from the
+# mounted Secret with the strict permissions mongod requires (mode 0400, owned by
+# uid/gid 999). docker-entrypoint.sh then drops privileges to the mongodb user and,
+# because the data dir is empty on a fresh volume, creates the root user from
+# MONGO_INITDB_ROOT_USERNAME/PASSWORD via the localhost exception.
+#
+# rs.initiate() is run separately and automatically by the mongo-rs-init Job.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: infra
+spec:
+  serviceName: mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:8.2.3
+          command:
+            - bash
+            - -c
+            - |
+              set -euo pipefail
+              cp /etc/mongo-keyfile/keyfile /data/keyfile
+              chmod 400 /data/keyfile
+              chown 999:999 /data/keyfile
+              exec docker-entrypoint.sh mongod \
+                --replSet rs0 \
+                --keyFile /data/keyfile \
+                --bind_ip_all
+          ports:
+            - name: mongo
+              containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: password
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: keyfile
+              mountPath: /etc/mongo-keyfile
+              readOnly: true
+      volumes:
+        - name: keyfile
+          secret:
+            secretName: secret
+            items:
+              - key: keyfile
+                path: keyfile
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

@@ -1,0 +1,66 @@
+# Host-metrics collector (cpu/mem/disk/net) → MongoDB `vps_metrics`, read by Grafana.
+# DaemonSet so it runs on every node (today: one node). Was a Swarm `mode: global` service.
+#
+# The `telegraf-config` ConfigMap is generated from monitoring/telegraf/telegraf.conf
+# by the deploy workflow (kubectl create configmap --from-file), so the .conf stays the
+# single source of truth.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: telegraf
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: telegraf
+  template:
+    metadata:
+      labels:
+        app: telegraf
+    spec:
+      # Read host /proc, /sys, /etc; run as root so collection isn't blocked by perms.
+      hostNetwork: true
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: telegraf
+          image: telegraf:1.37.3
+          env:
+            - name: HOST_PROC
+              value: /host/proc
+            - name: HOST_SYS
+              value: /host/sys
+            - name: HOST_ETC
+              value: /host/etc
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: uri
+          volumeMounts:
+            - name: config
+              mountPath: /etc/telegraf/telegraf.conf
+              subPath: telegraf.conf
+              readOnly: true
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: etc
+              mountPath: /host/etc
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: telegraf-config
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: etc
+          hostPath:
+            path: /etc

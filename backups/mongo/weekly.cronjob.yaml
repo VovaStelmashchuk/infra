@@ -1,0 +1,49 @@
+# Weekly mongodump → S3 (folder mongo-rs-weekly). 03:20 UTC on Tuesdays.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongo-backup-weekly
+  namespace: infra
+spec:
+  schedule: "20 3 * * 2"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: ghcr.io/vovastelmashchuk/mongo-rs-backup:latest
+              command: ["/usr/local/bin/backup.sh"]
+              env:
+                - name: S3_FOLDER
+                  value: mongo-rs-weekly
+                - name: MONGO_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: uri
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: endpoint
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: bucket
+                - name: S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: access-key-id
+                - name: S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: secret
+                      key: secret-access-key
