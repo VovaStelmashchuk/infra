@@ -10,8 +10,10 @@ spec:
   tls:
     - hosts:
         - compass.stelmashchuk.dev
-        - compass.kube.stelmashchuk.dev
       secretName: compass-tls
+    - hosts:
+        - compass.kube.stelmashchuk.dev
+      secretName: compass-kube-tls
   rules:
     - host: compass.stelmashchuk.dev
       http:

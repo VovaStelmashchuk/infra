@@ -10,8 +10,10 @@ spec:
   tls:
     - hosts:
         - maintenance.stelmashchuk.dev
-        - maintenance.kube.stelmashchuk.dev
       secretName: maintenance-tls
+    - hosts:
+        - maintenance.kube.stelmashchuk.dev
+      secretName: maintenance-kube-tls
   rules:
     - host: maintenance.stelmashchuk.dev
       http:

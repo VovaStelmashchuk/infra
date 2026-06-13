@@ -10,8 +10,10 @@ spec:
   tls:
     - hosts:
         - grafana.stelmashchuk.dev
-        - grafana.kube.stelmashchuk.dev
       secretName: grafana-tls
+    - hosts:
+        - grafana.kube.stelmashchuk.dev
+      secretName: grafana-kube-tls
   rules:
     - host: grafana.stelmashchuk.dev
       http:
