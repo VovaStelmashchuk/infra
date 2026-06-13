@@ -10,9 +10,20 @@ spec:
   tls:
     - hosts:
         - maintenance.stelmashchuk.dev
+        - maintenance.kube.stelmashchuk.dev
       secretName: maintenance-tls
   rules:
     - host: maintenance.stelmashchuk.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: maintenance
+                port:
+                  number: 80
+    - host: maintenance.kube.stelmashchuk.dev
       http:
         paths:
           - path: /
