@@ -64,8 +64,12 @@ First-time cluster setup (k3s install, kubeconfig export, firewall, cert-manager
 ## Secrets
 
 The shared `secret` is dynamically generated during the GitHub Action CI from GitHub Secrets.
-You must configure the following secrets in your GitHub Repository Settings:
+You must configure the following in your GitHub Repository Settings:
+
+**Environment Variables (Variables tab):**
 - `USERNAME`
+
+**Environment Secrets (Secrets tab):**
 - `PASSWORD`
 - `MONGO_RS_KEYFILE_CONTENT` (generate locally once via `openssl rand -base64 756`)
 - `S3_ENDPOINT`

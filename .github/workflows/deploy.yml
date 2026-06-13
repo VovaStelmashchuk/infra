@@ -81,9 +81,9 @@ jobs:
         run: |
           kubectl create secret generic secret \
             --namespace infra \
-            --from-literal=username="${{ secrets.USERNAME }}" \
+            --from-literal=username="${{ vars.USERNAME }}" \
             --from-literal=password="${{ secrets.PASSWORD }}" \
-            --from-literal=uri="mongodb://${{ secrets.USERNAME }}:${{ secrets.PASSWORD }}@mongo-0.mongo.infra.svc.cluster.local:27017/?replicaSet=rs0&authSource=admin" \
+            --from-literal=uri="mongodb://${{ vars.USERNAME }}:${{ secrets.PASSWORD }}@mongo-0.mongo.infra.svc.cluster.local:27017/?replicaSet=rs0&authSource=admin" \
             --from-literal=keyfile="${{ secrets.MONGO_RS_KEYFILE_CONTENT }}" \
             --from-literal=endpoint="${{ secrets.S3_ENDPOINT }}" \
             --from-literal=bucket="${{ secrets.S3_BUCKET }}" \
