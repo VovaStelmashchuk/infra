@@ -67,12 +67,12 @@ jobs:
           chmod 600 "$HOME/.kube/config"
 
       - name: Pin custom images to this commit
-        # Manifests reference our GHCR images as :latest for readability; pin them to
+        # Manifests reference our GHCR images as :COMMIT_SHA for explicitness; pin them to
         # the freshly built commit SHA so each deploy rolls out exactly what was built.
         run: |
           find . -name '*.yaml' -not -path './.github/*' -print0 \
             | xargs -0 sed -i \
-              "s|ghcr.io/${OWNER_NAME}/\([a-z0-9-]*\):latest|ghcr.io/${OWNER_NAME}/\1:${{ github.sha }}|g"
+              "s|ghcr.io/${OWNER_NAME}/\([a-z0-9-]*\):COMMIT_SHA|ghcr.io/${OWNER_NAME}/\1:${{ github.sha }}|g"
 
       - name: Create namespace
         run: kubectl apply -f namespaces/

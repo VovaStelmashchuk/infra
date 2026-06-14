@@ -17,7 +17,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: ghcr.io/vovastelmashchuk/mongo-rs-backup:latest
+              image: ghcr.io/vovastelmashchuk/mongo-rs-backup:COMMIT_SHA
               command: ["/usr/local/bin/backup.sh"]
               env:
                 - name: S3_FOLDER

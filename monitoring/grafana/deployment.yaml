@@ -21,7 +21,7 @@ spec:
         fsGroup: 472
       containers:
         - name: grafana
-          image: ghcr.io/vovastelmashchuk/grafana:latest
+          image: ghcr.io/vovastelmashchuk/grafana:COMMIT_SHA
           ports:
             - name: http
               containerPort: 3000

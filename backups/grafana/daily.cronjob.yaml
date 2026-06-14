@@ -19,7 +19,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: ghcr.io/vovastelmashchuk/grafana-backup:latest
+              image: ghcr.io/vovastelmashchuk/grafana-backup:COMMIT_SHA
               command: ["/usr/local/bin/backup.sh"]
               env:
                 - name: GRAFANA_DATA_DIR
