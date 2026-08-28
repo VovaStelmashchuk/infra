@@ -12,3 +12,14 @@ datasources:
     jsonData:
       maxLines: 2000
       timeout: 60
+
+# Two Loki datasources with an empty URL were created by hand on the server.
+# The one literally named `loki` shadowed the provisioned datasource above
+# (whose uid is `loki`), so the dashboard resolved to it and every query failed
+# with `unsupported protocol scheme ""`. Provisioning deletes run before the
+# inserts above, so the good datasource is always recreated.
+deleteDatasources:
+  - name: loki
+    orgId: 1
+  - name: loki-1
+    orgId: 1
