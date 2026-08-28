@@ -45,6 +45,12 @@ jobs:
           - name: telegraf
             context: ./telegraf
             image: telegraf
+          - name: loki
+            context: ./loki
+            image: loki
+          - name: alloy
+            context: ./alloy
+            image: alloy
     
     runs-on: ubuntu-latest
     permissions:
