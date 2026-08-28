@@ -1,4 +1,4 @@
-FROM grafana/loki:3.5.1
+FROM grafana/loki:3.7.7
 
 # The base image is distroless (no shell tooling, no package manager), so the
 # image only carries our config. Ownership of the /loki volume is prepared by

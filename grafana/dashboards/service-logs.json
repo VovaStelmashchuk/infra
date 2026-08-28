@@ -105,7 +105,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.4.0-22081664032",
+      "pluginVersion": "13.2.0",
       "targets": [
         {
           "datasource": {
@@ -205,7 +205,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.4.0-22081664032",
+      "pluginVersion": "13.2.0",
       "targets": [
         {
           "datasource": {
@@ -250,7 +250,7 @@
         "unwrappedColumns": false,
         "wrapLogMessage": true
       },
-      "pluginVersion": "12.4.0-22081664032",
+      "pluginVersion": "13.2.0",
       "targets": [
         {
           "datasource": {
