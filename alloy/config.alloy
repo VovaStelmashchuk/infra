@@ -1,0 +1,75 @@
+// Grafana Alloy ships the stdout/stderr of every container running on this
+// node to Loki. It is deployed in global mode, so one instance runs per swarm
+// node and together they cover the whole cluster.
+
+// Discover every running container on this node through the Docker API.
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+
+  filter {
+    name   = "status"
+    values = ["running"]
+  }
+}
+
+// Turn Docker/Swarm metadata into the labels we query by in Grafana.
+// Labels are kept deliberately few: every unique combination is a separate
+// stream in Loki, and high cardinality is what makes Loki slow and fat.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // Container name, without the leading slash. Used as the fallback service
+  // name for containers started outside of swarm.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "service"
+  }
+
+  // For swarm managed containers the service name is the useful identity
+  // (infra_grafana, infra_caddy, ...). Only overwrites when the label exists.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    regex         = "(.+)"
+    target_label  = "service"
+  }
+
+  // Stack the service belongs to: infra, nu31space, prismo, ...
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_stack_namespace"]
+    regex         = "(.+)"
+    target_label  = "stack"
+  }
+
+  // Swarm node this container runs on. `hostname` is set to {{.Node.Hostname}}
+  // in the stack file, so it matches the node name shown by `docker node ls`.
+  rule {
+    target_label = "node"
+    replacement  = constants.hostname
+  }
+}
+
+// Stream the container logs from the Docker API into the processing pipeline.
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.containers.output
+  forward_to       = [loki.process.containers.receiver]
+  refresh_interval = "15s"
+}
+
+loki.process "containers" {
+  forward_to = [loki.write.loki.receiver]
+
+  // Drop the empty lines many images print on startup, they are pure noise
+  // in the log panel.
+  stage.drop {
+    expression = "^\\s*$"
+  }
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

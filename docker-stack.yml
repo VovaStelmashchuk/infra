@@ -190,6 +190,7 @@ services:
     networks:
       - reverse-proxy
       - mongo-rs-net
+      - logs-net
 
   grafana-backup-daily:
     image: ghcr.io/${OWNER_NAME}/grafana-backup:${GIT_COMMIT_SHA}
@@ -215,6 +216,71 @@ services:
         - "swarm.cronjob.skip-running=true"
       restart_policy:
         condition: none
+
+  loki-init:
+    image: alpine:3.21
+    # Loki runs as uid 10001 but docker creates the loki-data volume as root,
+    # and the loki image is distroless so it cannot fix that itself. This
+    # one-shot task prepares the data directories on every deploy. Same idea
+    # as mongo-rs-init above.
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /loki/chunks /loki/rules /loki/rules-temp /loki/compactor /loki/wal
+        chown -R 10001:10001 /loki
+        echo "loki data dir ready"
+    volumes:
+      - loki-data:/loki
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: none
+
+  loki:
+    image: ghcr.io/${OWNER_NAME}/loki:${GIT_COMMIT_SHA}
+    # Log storage for the whole swarm. Not published through caddy, only
+    # grafana and the alloy collectors talk to it over logs-net.
+    depends_on:
+      - loki-init
+    volumes:
+      - loki-data:/loki
+    environment:
+      - TZ=UTC
+    networks:
+      - logs-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 1G
+
+  alloy:
+    image: ghcr.io/${OWNER_NAME}/alloy:${GIT_COMMIT_SHA}
+    # Collects the logs of every container on the node and pushes them to loki.
+    hostname: "{{.Node.Hostname}}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    environment:
+      - TZ=UTC
+    networks:
+      - logs-net
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: 512M
 
   telegraf:
     image: ghcr.io/${OWNER_NAME}/telegraf:${GIT_COMMIT_SHA}
@@ -249,8 +315,15 @@ networks:
     attachable: true
     driver_opts:
       encrypted: "true"
+  logs-net:
+    driver: overlay
+    attachable: true
+    driver_opts:
+      encrypted: "true"
 
 volumes:
   mongodb-rs-1-data:
   grafana-data:
   caddy-data:
+  loki-data:
+  alloy-data:

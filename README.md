@@ -15,6 +15,7 @@ The infrastructure includes the following:
 - MongoDB replica set
 - Caddy reverse proxy
 - Grafana
+- Centralized logs for every container (Loki + Grafana Alloy)
 - Periodic backups for mongo, grafana, caddy config
 
 ## Infrastructure components
@@ -35,6 +36,67 @@ Generate key for replica set (execute on server mathine)
 ```sh
 openssl rand -base64 756 | docker secret create mongodb-keyfile -
 ```
+
+### Logs
+
+All container logs of the swarm are collected and browsable in Grafana, so there is
+no need to ssh into the VPS and run `docker service logs` anymore.
+
+Three services do the job:
+
+- **alloy** (`grafana/alloy`) runs in `global` mode, so one instance per swarm node.
+  It reads the Docker API, discovers every running container on its node and streams
+  the container stdout/stderr to Loki. Config: `alloy/config.alloy`.
+- **loki** (`grafana/loki`) stores the logs on the `loki-data` volume. It is a single
+  node, filesystem backed setup, no object storage, no clustering. Config:
+  `loki/loki-config.yml`.
+- **loki-init** is a one-shot task (like `mongo-rs-init`) that prepares the data
+  directories on the `loki-data` volume for uid `10001`. The loki image is
+  distroless and cannot chown its own volume.
+
+They live on the private `logs-net` overlay network together with Grafana. Loki is
+**not** published through Caddy, the only way to read the logs is Grafana.
+
+#### How to look at the logs
+
+Open [grafana.stelmashchuk.dev](https://grafana.stelmashchuk.dev) and either:
+
+- use the dashboard **Infra / Service logs** (provisioned from
+  `grafana/dashboards/service-logs.json`) - pick a stack, a service and a node,
+  optionally type a regex into the search box, or
+- use **Explore** with the `Loki` datasource and write LogQL by hand.
+
+Useful queries:
+
+```logql
+# everything of one service
+{service="infra_grafana"}
+
+# everything of the infra stack, only the lines containing "error"
+{stack="infra"} |~ "(?i)error"
+
+# how many lines per second each service produces
+sum by (service) (rate({stack="infra"}[5m]))
+```
+
+Every log line carries three labels:
+
+| label     | meaning                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `service` | swarm service name (`infra_grafana`), or container name if not swarm |
+| `stack`   | stack the service belongs to (`infra`, `mixdrinks`, ...)             |
+| `node`    | swarm node the container runs on                                     |
+
+The label set is kept small on purpose: each unique combination is a separate stream
+in Loki, and high cardinality labels (container id, request id, ...) are what makes
+Loki slow and expensive. Everything else stays in the log line and can be filtered
+with `|=` / `|~`.
+
+#### Retention
+
+Logs are kept **30 days** and then deleted by the Loki compactor, see
+`retention_period` in `loki/loki-config.yml`. Logs are not backed up - they are
+debugging material, not data we need to restore.
 
 ### Periodic tasks
 
