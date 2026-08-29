@@ -296,7 +296,7 @@
         "type": "query"
       },
       {
-        "allValue": ".*",
+        "allValue": ".+",
         "current": {
           "text": "All",
           "value": "$__all"
@@ -310,7 +310,7 @@
         "multi": true,
         "name": "service",
         "options": [],
-        "query": "label_values({stack=~\"$stack\"}, service)",
+        "query": "label_values({stack=~\"$stack\", service=~\".+\"}, service)",
         "refresh": 2,
         "regexApplyTo": "value",
         "type": "query"
