@@ -30,6 +30,9 @@ jobs:
           - name: mongo-rs-backup
             context: ./mongo-rs-backup
             image: mongo-rs-backup
+          - name: postgres-backup
+            context: ./postgres-backup
+            image: postgres-backup
           - name: caddy
             context: ./caddy
             image: caddy

@@ -124,6 +124,78 @@ services:
       restart_policy:
         condition: none
 
+  postgres:
+    image: postgres:18.6
+    # Single instance on purpose: one node, one volume, no replication.
+    # Since 18 the image keeps PGDATA under /var/lib/postgresql/18/docker and
+    # the volume mount point moved to /var/lib/postgresql.
+    environment:
+      - TZ=UTC
+      - POSTGRES_USER=${USERNAME}
+      - POSTGRES_PASSWORD=${PASSWORD}
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - postgres-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+
+  pgadmin:
+    image: dpage/pgadmin4:9.17
+    # pgadmin requires an email as the login, so the root user is exposed as
+    # ${USERNAME}@stelmashchuk.dev with the shared password.
+    environment:
+      - TZ=UTC
+      - PGADMIN_DEFAULT_EMAIL=${USERNAME}@stelmashchuk.dev
+      - PGADMIN_DEFAULT_PASSWORD=${PASSWORD}
+      - PGADMIN_LISTEN_PORT=5050
+      - PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY=False
+      # Served through caddy, so trust one hop of X-Forwarded-* headers.
+      - PGADMIN_CONFIG_PROXY_X_FOR_COUNT=1
+      - PGADMIN_CONFIG_PROXY_X_PROTO_COUNT=1
+      - PGADMIN_CONFIG_PROXY_X_HOST_COUNT=1
+      - PGADMIN_CONFIG_PROXY_X_PORT_COUNT=1
+      - PGADMIN_CONFIG_PROXY_X_PREFIX_COUNT=1
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - postgres-net
+      - reverse-proxy
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  postgres-backup-weekly:
+    image: ghcr.io/${OWNER_NAME}/postgres-backup:${GIT_COMMIT_SHA}
+    command: ["/usr/local/bin/backup.sh"]
+    depends_on:
+      - cron
+      - postgres
+    environment:
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - POSTGRES_URI=postgresql://${USERNAME}:${PASSWORD}@postgres:5432/postgres
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+      - S3_FOLDER=postgres-weekly
+    networks:
+      - postgres-net
+    deploy:
+      mode: replicated
+      replicas: 0
+      labels:
+        - "swarm.cronjob.enable=true"
+        - "swarm.cronjob.schedule=40 3 * * 2"
+        - "swarm.cronjob.skip-running=true"
+      restart_policy:
+        condition: none
+
   caddy-backup-daily:
     image: ghcr.io/${OWNER_NAME}/caddy-backup:${GIT_COMMIT_SHA}
     command: ["/usr/local/bin/backup.sh"]
@@ -315,6 +387,11 @@ networks:
     attachable: true
     driver_opts:
       encrypted: "true"
+  postgres-net:
+    driver: overlay
+    attachable: true
+    driver_opts:
+      encrypted: "true"
   logs-net:
     driver: overlay
     attachable: true
@@ -323,6 +400,8 @@ networks:
 
 volumes:
   mongodb-rs-1-data:
+  postgres-data:
+  pgadmin-data:
   grafana-data:
   caddy-data:
   loki-data:

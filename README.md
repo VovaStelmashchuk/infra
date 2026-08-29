@@ -13,10 +13,11 @@ The project provides all infrastruture require to implement simple pet projects 
 The infrastructure includes the following:
 - Docker Swarm
 - MongoDB replica set
+- PostgreSQL with pgAdmin
 - Caddy reverse proxy
 - Grafana
 - Centralized logs for every container (Loki + Grafana Alloy)
-- Periodic backups for mongo, grafana, caddy config
+- Periodic backups for mongo, postgres, grafana, caddy config
 
 ## Infrastructure components
 
@@ -36,6 +37,31 @@ Generate key for replica set (execute on server mathine)
 ```sh
 openssl rand -base64 756 | docker secret create mongodb-keyfile -
 ```
+
+#### PostgreSQL
+
+Some projects need a relational store, so the stack also runs **postgres** next to
+mongo. It is a single instance, no replication, one `postgres-data` volume. The
+service is deployed with `replicas: 1` and `update_config.order: stop-first` so two
+containers never touch the same data directory.
+
+The root user is the same `${USERNAME}` / `${PASSWORD}` pair used by mongo and
+grafana. Applications reach it on the private `postgres-net` overlay network:
+
+```
+postgresql://${USERNAME}:${PASSWORD}@postgres:5432/postgres
+```
+
+Note for postgres 18: the image keeps `PGDATA` in `/var/lib/postgresql/18/docker`,
+so the volume is mounted at `/var/lib/postgresql`, not at `.../data` as in older
+versions.
+
+**pgadmin** (`dpage/pgadmin4`) is published through caddy on
+`pgadmin.stelmashchuk.dev`, same idea as compass for mongo. pgAdmin only accepts an
+email as the login, so the account is `${USERNAME}@stelmashchuk.dev` with the shared
+`${PASSWORD}`. The postgres server is not preregistered in pgAdmin, add it once with
+host `postgres`, port `5432` and the credentials above; it is then stored in the
+`pgadmin-data` volume.
 
 ### Logs
 
@@ -104,8 +130,12 @@ The `infra` stack has the cron executor `crazymax/swarm-cronjob` which is used f
 
 ### Backups
 
-The project provides periodic backups for mongo and caddy config.
+The project provides periodic backups for mongo, postgres and caddy config.
 The Database backups each hour, each day, and each week, all backups can be stored in any S3 compatible storage.
+
+Postgres is backed up **weekly only** (`postgres-backup-weekly`, Tuesday 03:40 UTC).
+The job runs `pg_dumpall` and uploads one gzipped sql file to the `postgres-weekly`
+folder of the S3 bucket, see `postgres-backup/backup.sh`.
 
 ## Build & deploy
 
@@ -163,6 +193,16 @@ Restore mongo from backup
 ```bash
 docker exec -it <mongo container> mongorestore --uri mongodb://localhost:27017 --gzip --archive=test.archive
 ```
+
+### Restore postgres from backup
+
+```sh
+gunzip -c pgdumpall-2026-08-25_03-40.sql.gz | \
+  psql --dbname="postgresql://<user>:<password>@localhost:5432/postgres"
+```
+
+`pg_dumpall` output includes the roles and every database, so a single file restores
+the whole instance.
 
 ### Restore database from backup
 

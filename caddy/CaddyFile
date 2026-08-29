@@ -17,6 +17,10 @@ compass.stelmashchuk.dev {
         reverse_proxy * infra_mongo-rs-viewer:8080
 }
 
+pgadmin.stelmashchuk.dev {
+        reverse_proxy * infra_pgadmin:5050
+}
+
 mixdrinks.org {
         reverse_proxy * mixdrinks_app:3000
 }
