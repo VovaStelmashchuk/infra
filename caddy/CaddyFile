@@ -60,6 +60,10 @@ nest2d.stelmashchuk.dev {
         reverse_proxy * nest2d_app:3000
 }
 
+pdf.stelmashchuk.dev {
+        reverse_proxy * label-generator_app:3000
+}
+
 kickstart.stelmashchuk.dev {
         redir https://velonuxt.stelmashchuk.dev{uri}
 }
