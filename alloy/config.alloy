@@ -73,3 +73,37 @@ loki.write "loki" {
     url = "http://loki:3100/loki/api/v1/push"
   }
 }
+
+// ---------------------------------------------------------
+// Metrics Collection
+// ---------------------------------------------------------
+
+// 1. Configure the Unix/Node Exporter for host metrics
+prometheus.exporter.unix "host" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/host/etc"
+}
+
+// 2. Configure the cAdvisor Exporter for container metrics
+prometheus.exporter.cadvisor "docker" {
+  docker_host = "unix:///var/run/docker.sock"
+}
+
+// 3. Scrape both exporters
+prometheus.scrape "metrics" {
+  targets = concat(
+    prometheus.exporter.unix.host.targets,
+    prometheus.exporter.cadvisor.docker.targets,
+  )
+
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
+// 4. Send the metrics to Prometheus
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}

@@ -336,8 +336,14 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc:/host/etc:ro
     environment:
       - TZ=UTC
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_ETC=/host/etc
     networks:
       - logs-net
     deploy:
@@ -349,25 +355,27 @@ services:
         limits:
           memory: 512M
 
-  telegraf:
-    image: ghcr.io/${OWNER_NAME}/telegraf:${GIT_COMMIT_SHA}
-    hostname: "{{.Node.Hostname}}"
-    networks:
-      - mongo-rs-net
-    environment:
-      - HOST_PROC=/host/proc
-      - HOST_SYS=/host/sys
-      - HOST_ETC=/host/etc
-      - MONGO_URL=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-remote-write-receiver'
+      - '--storage.tsdb.retention.time=15d'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /proc:/host/proc
-      - /sys:/host/sys
-      - /etc:/host/etc
+      - prometheus-data:/prometheus
+    networks:
+      - logs-net
     deploy:
-      mode: global
+      mode: replicated
+      replicas: 1
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          memory: 512M
 
 secrets:
   dozzle_users:
@@ -401,3 +409,4 @@ volumes:
   caddy-data:
   loki-data:
   alloy-data:
+  prometheus-data:
