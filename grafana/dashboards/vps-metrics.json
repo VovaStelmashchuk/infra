@@ -165,7 +165,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/host/etc\"} * 100) / node_filesystem_size_bytes{mountpoint=\"/host/etc\"})",
+          "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=~\"(/|/rootfs)\"} * 100) / node_filesystem_size_bytes{mountpoint=~\"(/|/rootfs)\"})",
           "legendFormat": "{{mountpoint}}",
           "refId": "A"
         }

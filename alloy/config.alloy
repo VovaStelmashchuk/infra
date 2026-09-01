@@ -82,7 +82,7 @@ loki.write "loki" {
 prometheus.exporter.unix "host" {
   procfs_path = "/host/proc"
   sysfs_path  = "/host/sys"
-  rootfs_path = "/host/etc"
+  rootfs_path = "/rootfs"
 }
 
 // 2. Configure the cAdvisor Exporter for container metrics
