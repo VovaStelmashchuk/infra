@@ -339,12 +339,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "(container_last_seen{name!=\"\"} > 0) * 0 + 1",
-          "legendFormat": "{{name}}",
+          "expr": "max by (container_label_com_docker_swarm_service_name) ((container_last_seen{container_label_com_docker_swarm_service_name!=\"\"} > 0) * 0 + 1)",
+          "legendFormat": "{{container_label_com_docker_swarm_service_name}}",
           "refId": "A"
         }
       ],
-      "title": "Service Uptime (Docker Containers)",
+      "title": "Service Uptime",
       "type": "timeseries"
     }
   ],
