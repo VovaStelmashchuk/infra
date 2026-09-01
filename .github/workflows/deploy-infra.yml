@@ -45,9 +45,7 @@ jobs:
           - name: grafana-backup
             context: ./grafana-backup
             image: grafana-backup
-          - name: telegraf
-            context: ./telegraf
-            image: telegraf
+
           - name: loki
             context: ./loki
             image: loki
