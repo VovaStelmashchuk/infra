@@ -87,7 +87,7 @@ They live on the private `logs-net` overlay network together with Grafana. Loki 
 
 Open [grafana.stelmashchuk.dev](https://grafana.stelmashchuk.dev) and either:
 
-- use the dashboard **Infra / Service logs** (provisioned from
+- use the dashboard **Service logs** (provisioned from
   `grafana/dashboards/service-logs.json`) - pick a stack, a service and a node,
   optionally type a regex into the search box, or
 - use **Explore** with the `Loki` datasource and write LogQL by hand.
