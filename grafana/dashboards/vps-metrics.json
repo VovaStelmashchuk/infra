@@ -339,7 +339,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "up{job=\"metrics\"} or (time() - container_last_seen{name=~\"/.+\"} < 30)",
+          "expr": "(container_last_seen{name!=\"\"} > 0) * 0 + 1",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
