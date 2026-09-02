@@ -1,4 +1,4 @@
-FROM mongo:8.2.9
+FROM mongo:8.3.8
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3-pip ca-certificates \
