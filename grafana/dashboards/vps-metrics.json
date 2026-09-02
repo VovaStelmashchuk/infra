@@ -311,12 +311,12 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
+      "gridPos": { "h": 10, "w": 6, "x": 0, "y": 24 },
       "id": 6,
       "options": {
         "colorMode": "background",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "value_and_name"
       },
@@ -328,7 +328,7 @@
           "refId": "A"
         }
       ],
-      "title": "Docker Stacks (Click for Logs)",
+      "title": "Stacks",
       "type": "stat"
     },
     {
@@ -356,12 +356,12 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "gridPos": { "h": 10, "w": 18, "x": 6, "y": 24 },
       "id": 7,
       "options": {
         "colorMode": "background",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "value_and_name"
       },
@@ -373,7 +373,7 @@
           "refId": "A"
         }
       ],
-      "title": "Docker Services Replica Count (Click for Logs)",
+      "title": "Services Replica Count",
       "type": "stat"
     }
   ],
