@@ -263,7 +263,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "id": 5,
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
@@ -290,32 +290,16 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [
+          "color": { "mode": "thresholds" },
+          "links": [
             {
-              "options": { "0": { "color": "red", "index": 1, "text": "Down" }, "1": { "color": "green", "index": 0, "text": "Up" } },
-              "type": "value"
+              "targetBlank": false,
+              "title": "View Logs for Stack",
+              "url": "/d/service-logs/service-logs?var-stack=${__field.labels.container_label_com_docker_stack_namespace}&var-service=All"
             }
+          ],
+          "mappings": [
+            { "options": { "match": "null", "result": { "text": "0" } }, "type": "special" }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -323,29 +307,74 @@
               { "color": "red", "value": null },
               { "color": "green", "value": 1 }
             ]
-          },
-          "unit": "none",
-          "min": 0,
-          "max": 1
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
       "id": 6,
       "options": {
-        "legend": { "calcs": [], "displayMode": "table", "placement": "right", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max by (container_label_com_docker_swarm_service_name) ((container_last_seen{container_label_com_docker_swarm_service_name!=\"\"} > 0) * 0 + 1)",
+          "expr": "count by (container_label_com_docker_stack_namespace) (container_last_seen{container_label_com_docker_stack_namespace!=\"\"})",
+          "legendFormat": "{{container_label_com_docker_stack_namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Docker Stacks (Click for Logs)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "links": [
+            {
+              "targetBlank": false,
+              "title": "View Logs for Service",
+              "url": "/d/service-logs/service-logs?var-stack=${__field.labels.container_label_com_docker_stack_namespace}&var-service=${__field.labels.container_label_com_docker_swarm_service_name}"
+            }
+          ],
+          "mappings": [
+            { "options": { "match": "null", "result": { "text": "0" } }, "type": "special" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count by (container_label_com_docker_stack_namespace, container_label_com_docker_swarm_service_name) (container_last_seen{container_label_com_docker_swarm_service_name!=\"\"})",
           "legendFormat": "{{container_label_com_docker_swarm_service_name}}",
           "refId": "A"
         }
       ],
-      "title": "Service Uptime",
-      "type": "timeseries"
+      "title": "Docker Services Replica Count (Click for Logs)",
+      "type": "stat"
     }
   ],
   "preload": false,
