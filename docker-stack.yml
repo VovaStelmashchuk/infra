@@ -223,9 +223,18 @@ services:
       - 8.8.8.8
       - 8.8.4.4
     ports:
-      - "8080:8080"
-      - "80:80"
-      - "443:443"
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
     volumes:
       - caddy-data:/caddy_storage
     environment:
