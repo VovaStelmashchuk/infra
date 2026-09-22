@@ -33,6 +33,9 @@ jobs:
           - name: postgres-backup
             context: ./postgres-backup
             image: postgres-backup
+          - name: postgres-exporter
+            context: ./postgres-exporter
+            image: postgres-exporter
           - name: caddy
             context: ./caddy
             image: caddy

@@ -108,3 +108,53 @@ prometheus.remote_write "default" {
     url = "http://prometheus:9090/api/v1/write"
   }
 }
+
+// 5. Scrape the postgres exporter, which turns pg_stat_statements and the
+// other postgres statistics into metrics (query time above all).
+//
+// The exporter is found through the same docker discovery as the logs instead
+// of being hardcoded as a static "postgres-exporter:9187" target. That way the
+// exporter is scraped by the alloy instance running on its node and only by
+// that one: with a static target every node would scrape the same exporter and
+// push the same series to prometheus.
+discovery.relabel "postgres_exporter" {
+  targets = discovery.docker.containers.targets
+
+  // Keep only the exporter container, whatever stack it is deployed under.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    regex         = ".+_postgres-exporter"
+    action        = "keep"
+  }
+
+  // The exporter is attached to postgres-net and logs-net, docker discovery
+  // returns one target per network. Alloy can only reach it on logs-net, and
+  // scraping both would duplicate every series.
+  rule {
+    source_labels = ["__meta_docker_network_name"]
+    regex         = ".+_logs-net"
+    action        = "keep"
+  }
+
+  // Address the exporter port explicitly, the discovered one depends on what
+  // the image exposes.
+  rule {
+    source_labels = ["__meta_docker_network_ip"]
+    regex         = "(.+)"
+    target_label  = "__address__"
+    replacement   = "$1:9187"
+  }
+
+  // A fixed instance label. The container ip changes on every redeploy, using
+  // it would start a new set of series each time.
+  rule {
+    target_label = "instance"
+    replacement  = "postgres"
+  }
+}
+
+prometheus.scrape "postgres" {
+  targets         = discovery.relabel.postgres_exporter.output
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}

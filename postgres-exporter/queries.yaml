@@ -1,0 +1,112 @@
+# Custom metrics for postgres_exporter, on top of the built in collectors.
+#
+# The metric name is "<top level key>_<column name>", so the names below are
+# ours and do not move when the exporter changes its built in collectors.
+#
+# Everything here reads pg_stat_statements, which is loaded through
+# shared_preload_libraries in docker-stack.yml and created as an extension by
+# the postgres-init task. Timings in pg_stat_statements are milliseconds since
+# the last stats reset, they are divided by 1000 so the metrics are in seconds,
+# the unit Prometheus expects.
+
+# Query time aggregated per database. Low cardinality, this is the series the
+# dashboard and any future alert should be built on. Only top level statements
+# are summed: a statement called from inside a function is already part of the
+# time of its caller, counting both would report more query time than the
+# database actually spent.
+pg_query:
+  query: |
+    SELECT
+      d.datname AS datname,
+      sum(s.calls)::bigint AS calls_total,
+      sum(s.total_exec_time) / 1000.0 AS seconds_total,
+      sum(s.rows)::bigint AS rows_total
+    FROM pg_stat_statements s
+    JOIN pg_database d ON d.oid = s.dbid
+    WHERE s.toplevel
+    GROUP BY d.datname
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "Database the statements were executed in"
+    - calls_total:
+        usage: "COUNTER"
+        description: "Number of statements executed since the last stats reset"
+    - seconds_total:
+        usage: "COUNTER"
+        description: "Time spent executing statements, in seconds, since the last stats reset"
+    - rows_total:
+        usage: "COUNTER"
+        description: "Rows returned or affected by the statements since the last stats reset"
+
+# The 20 slowest statements by mean execution time. Bounded on purpose: one
+# series per statement would mean up to pg_stat_statements.max series, which is
+# far too much for a Prometheus this size. The exporter's own reads of
+# pg_stat_statements are filtered out, otherwise they are the only thing in the
+# list while the database is idle.
+pg_slow_query:
+  query: |
+    SELECT
+      s.queryid::text AS queryid,
+      d.datname AS datname,
+      r.rolname AS usename,
+      left(regexp_replace(s.query, '\s+', ' ', 'g'), 120) AS query,
+      s.calls::bigint AS calls,
+      s.total_exec_time / 1000.0 AS seconds_total,
+      s.mean_exec_time / 1000.0 AS mean_seconds,
+      s.max_exec_time / 1000.0 AS max_seconds
+    FROM pg_stat_statements s
+    JOIN pg_database d ON d.oid = s.dbid
+    JOIN pg_roles r ON r.oid = s.userid
+    WHERE s.calls > 0
+      AND s.toplevel
+      AND s.query NOT LIKE '%pg_stat_statements%'
+    ORDER BY s.mean_exec_time DESC
+    LIMIT 20
+  cache_seconds: 60
+  metrics:
+    - queryid:
+        usage: "LABEL"
+        description: "pg_stat_statements identifier of the normalized statement"
+    - datname:
+        usage: "LABEL"
+        description: "Database the statement was executed in"
+    - usename:
+        usage: "LABEL"
+        description: "Role that executed the statement"
+    - query:
+        usage: "LABEL"
+        description: "First 120 characters of the normalized statement"
+    - calls:
+        usage: "COUNTER"
+        description: "Number of times the statement was executed since the last stats reset"
+    - seconds_total:
+        usage: "COUNTER"
+        description: "Time spent executing this statement, in seconds, since the last stats reset"
+    - mean_seconds:
+        usage: "GAUGE"
+        description: "Mean execution time of the statement, in seconds"
+    - max_seconds:
+        usage: "GAUGE"
+        description: "Slowest execution of the statement, in seconds"
+
+# What postgres is doing right now. pg_stat_statements only updates when a
+# statement finishes, so a query that hangs forever is invisible there.
+pg_running_query:
+  query: |
+    SELECT
+      count(*) FILTER (WHERE state = 'active')::bigint AS active_count,
+      coalesce(
+        max(extract(epoch FROM (clock_timestamp() - query_start)))
+          FILTER (WHERE state = 'active'),
+        0
+      ) AS max_seconds
+    FROM pg_stat_activity
+    WHERE backend_type = 'client backend'
+  metrics:
+    - active_count:
+        usage: "GAUGE"
+        description: "Client queries running at scrape time"
+    - max_seconds:
+        usage: "GAUGE"
+        description: "Age of the longest running client query at scrape time, in seconds"

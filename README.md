@@ -56,6 +56,8 @@ Note for postgres 18: the image keeps `PGDATA` in `/var/lib/postgresql/18/docker
 so the volume is mounted at `/var/lib/postgresql`, not at `.../data` as in older
 versions.
 
+Query timing is collected as well, see [Postgres query time](#postgres-query-time).
+
 **pgadmin** (`dpage/pgadmin4`) is published through caddy on
 `pgadmin.stelmashchuk.dev`, same idea as compass for mongo. pgAdmin only accepts an
 email as the login, so the account is `${USERNAME}@stelmashchuk.dev` with the shared
@@ -123,6 +125,82 @@ with `|=` / `|~`.
 Logs are kept **30 days** and then deleted by the Loki compactor, see
 `retention_period` in `loki/loki-config.yml`. Logs are not backed up - they are
 debugging material, not data we need to restore.
+
+### Metrics
+
+Metrics live next to the logs, in the same Grafana:
+
+- **alloy** also collects metrics, not only logs. It runs the node exporter (cpu,
+  memory, disk, network of the VPS), cAdvisor (per container cpu and memory) and
+  scrapes the postgres exporter, then `remote_write`s everything to Prometheus.
+  Config: `alloy/config.alloy`.
+- **prometheus** stores them on the `prometheus-data` volume, **15 days** of
+  retention, no backup - same reasoning as for the logs.
+- **postgres-exporter** (`prometheuscommunity/postgres-exporter`) turns the postgres
+  statistics into metrics. It is on `postgres-net` to read the database and on
+  `logs-net` to be scraped. Config: `postgres-exporter/queries.yaml`.
+
+Dashboards: **VPS Metrics** (`grafana/dashboards/vps-metrics.json`) and **Postgres
+Query Time** (`grafana/dashboards/postgres-query-time.json`).
+
+#### Postgres query time
+
+How long the database spends running queries comes from
+[pg_stat_statements](https://www.postgresql.org/docs/current/pgstatstatements.html),
+which postgres only collects when it is preloaded at server start. Two things in
+the stack make that work:
+
+- the `postgres` service starts with `-c shared_preload_libraries=pg_stat_statements`,
+- `postgres-init`, a one-shot task like `mongo-rs-init`, runs
+  `CREATE EXTENSION IF NOT EXISTS pg_stat_statements` on every deploy. The init
+  scripts of the postgres image only run on an empty data directory, so an existing
+  database needs this.
+
+The exporter then publishes these metrics, defined in `postgres-exporter/queries.yaml`:
+
+| metric                         | type    | labels                            | meaning                                                   |
+| ------------------------------ | ------- | --------------------------------- | --------------------------------------------------------- |
+| `pg_query_seconds_total`       | counter | `datname`                         | time spent executing statements                             |
+| `pg_query_calls_total`         | counter | `datname`                         | statements executed                                         |
+| `pg_query_rows_total`          | counter | `datname`                         | rows returned or affected                                   |
+| `pg_slow_query_mean_seconds`   | gauge   | `queryid`, `datname`, `usename`, `query` | mean time of one of the 20 slowest statements    |
+| `pg_slow_query_max_seconds`    | gauge   | same                              | slowest single execution of that statement                  |
+| `pg_slow_query_seconds_total`  | counter | same                              | time spent in that statement                                |
+| `pg_slow_query_calls`          | counter | same                              | executions of that statement                                |
+| `pg_running_query_active_count`| gauge   | -                                 | client queries running at scrape time                       |
+| `pg_running_query_max_seconds` | gauge   | -                                 | age of the longest running client query at scrape time      |
+
+The average query time is the ratio of the two first counters, which is also the
+main panel of the dashboard:
+
+```promql
+# average query time over the last 5 minutes
+sum(rate(pg_query_seconds_total[5m])) / sum(rate(pg_query_calls_total[5m]))
+
+# how many seconds of query time postgres runs per second, > 1 means parallel work
+rate(pg_query_seconds_total[5m])
+
+# the 5 statements with the worst mean time
+topk(5, pg_slow_query_mean_seconds)
+```
+
+A few things worth knowing:
+
+- pg_stat_statements counts a statement when it **finishes**, so a query that hangs
+  forever never shows up there. `pg_running_query_max_seconds` is the one to watch
+  for that, it is read from `pg_stat_activity` at every scrape.
+- `pg_slow_query_mean_seconds` is the mean over every execution since the last stats
+  reset (`SELECT pg_stat_statements_reset()`), not over the time range shown in
+  Grafana. It reacts slowly on purpose.
+- statements are normalized by postgres (`$1`, `$2` instead of the values) and cut at
+  120 characters in the label. The full text is in the database:
+  `SELECT query FROM pg_stat_statements WHERE queryid = ...`.
+- if the `pg_query_*` metrics are missing while `pg_up` is 1, the exporter started
+  but did not load `queries.yaml`, or `pg_stat_statements` is not there:
+  `docker service logs infra_postgres-exporter` says which one it is.
+- only the 20 slowest statements get their own series. Per statement metrics are the
+  easy way to fill a small Prometheus with thousands of series, the per database
+  counters are the ones to build alerts on.
 
 ### Periodic tasks
 
