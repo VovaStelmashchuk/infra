@@ -20,6 +20,9 @@ tar -czf "${ARCHIVE}" -C "$(dirname "${GRAFANA_DATA_DIR}")" "$(basename "${GRAFA
 
 # Authenticate to Google Cloud with the service account key (base64-encoded JSON).
 export CLOUDSDK_CONFIG=/tmp/gcloud
+# Archives are small and the service account cannot read bucket metadata,
+# which parallel composite uploads need, so keep uploads single-stream.
+export CLOUDSDK_STORAGE_PARALLEL_COMPOSITE_UPLOAD_ENABLED=False
 KEY_FILE="$(mktemp)"
 trap 'rm -f "${KEY_FILE}"' EXIT
 echo "${GCS_SA_KEY_BASE64}" | base64 -d > "${KEY_FILE}"
