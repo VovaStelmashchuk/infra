@@ -1,4 +1,4 @@
-FROM mongo:8.2.9
+FROM mongo:8.3.11
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg curl \
