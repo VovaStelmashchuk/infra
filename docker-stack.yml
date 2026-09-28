@@ -81,12 +81,10 @@ services:
       - cron
       - mongo-rs-1
     environment:
-      - S3_ENDPOINT=${S3_ENDPOINT}
       - MONGO_URI=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_FOLDER=mongo-rs-daily
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
+      - GCS_FOLDER=mongo-rs-daily
     networks:
       - mongo-rs-net
     deploy:
@@ -106,12 +104,10 @@ services:
       - cron
       - mongo-rs-1
     environment:
-      - S3_ENDPOINT=${S3_ENDPOINT}
       - MONGO_URI=mongodb://${USERNAME}:${PASSWORD}@mongo-rs-1:27017/?replicaSet=rs0&authSource=admin
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_FOLDER=mongo-rs-weekly
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
+      - GCS_FOLDER=mongo-rs-weekly
     networks:
       - mongo-rs-net
     deploy:
@@ -238,12 +234,10 @@ services:
       - cron
       - postgres
     environment:
-      - S3_ENDPOINT=${S3_ENDPOINT}
       - POSTGRES_URI=postgresql://${USERNAME}:${PASSWORD}@postgres:5432/postgres
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_FOLDER=postgres-weekly
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
+      - GCS_FOLDER=postgres-weekly
     networks:
       - postgres-net
     deploy:
@@ -263,12 +257,10 @@ services:
       - cron
       - caddy
     environment:
-      - S3_ENDPOINT=${S3_ENDPOINT}
       - CADDY_DATA_DIR=/caddy_storage
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_FOLDER=caddy-daliy
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
+      - GCS_FOLDER=caddy-daily
     volumes:
       - caddy-data:/caddy_storage
     deploy:
@@ -340,12 +332,10 @@ services:
       - cron
       - grafana
     environment:
-      - S3_ENDPOINT=${S3_ENDPOINT}
       - GRAFANA_DATA_DIR=/var/lib/grafana/grafana.db
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-      - S3_FOLDER=grafana-daily
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
+      - GCS_FOLDER=grafana-daily
     volumes:
       - grafana-data:/var/lib/grafana
     deploy:

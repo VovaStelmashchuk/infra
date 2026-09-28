@@ -17,10 +17,8 @@ env:
   ROOT_SSH_PRIVATE_KEY: ${{ secrets.ROOT_SSH_PRIVATE_KEY }}
   MONGO_RS_KEYFILE_CONTENT: ${{ secrets.MONGO_RS_KEYFILE_CONTENT }}
 
-  S3_BUCKET: backups
-  S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-  S3_ACCESS_KEY_ID: ${{ vars.S3_ACCESS_KEY_ID }}
-  S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+  GCS_BUCKET: ${{ vars.GCS_BUCKET }}
+  GCS_SA_KEY_BASE64: ${{ secrets.GCS_SA_KEY_BASE64 }}
 
 jobs:
   build-and-push:
@@ -98,10 +96,8 @@ jobs:
             write_var USERNAME
             write_var PASSWORD
             write_var MONGO_RS_KEYFILE_CONTENT
-            write_var S3_BUCKET
-            write_var S3_SECRET_ACCESS_KEY
-            write_var S3_ACCESS_KEY_ID
-            write_var S3_ENDPOINT
+            write_var GCS_BUCKET
+            write_var GCS_SA_KEY_BASE64
 
       - name: Docker Stack Deploy
         uses: cssnr/stack-deploy-action@v1

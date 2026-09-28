@@ -209,11 +209,17 @@ The `infra` stack has the cron executor `crazymax/swarm-cronjob` which is used f
 ### Backups
 
 The project provides periodic backups for mongo, postgres and caddy config.
-The Database backups each hour, each day, and each week, all backups can be stored in any S3 compatible storage.
+Mongo is backed up daily and weekly, caddy and grafana daily. All backups are uploaded to a Google Cloud Storage bucket
+with `gcloud storage cp`, authenticated by a service account key.
+
+Required GitHub configuration:
+- `GCS_BUCKET` (repository variable) - name of the GCS bucket
+- `GCS_SA_KEY_BASE64` (repository secret) - service account JSON key, base64 encoded (`base64 -i key.json | tr -d '\n'`).
+  The service account needs the `Storage Object Creator` role on the bucket.
 
 Postgres is backed up **weekly only** (`postgres-backup-weekly`, Tuesday 03:40 UTC).
 The job runs `pg_dumpall` and uploads one gzipped sql file to the `postgres-weekly`
-folder of the S3 bucket, see `postgres-backup/backup.sh`.
+folder of the GCS bucket, see `postgres-backup/backup.sh`.
 
 ## Build & deploy
 
