@@ -234,7 +234,11 @@ services:
       - cron
       - postgres
     environment:
-      - POSTGRES_URI=postgresql://${USERNAME}:${PASSWORD}@postgres:5432/postgres
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=${USERNAME}
+      - PGPASSWORD=${PASSWORD}
+      - PGDATABASE=postgres
       - GCS_BUCKET=${GCS_BUCKET}
       - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
       - GCS_FOLDER=postgres-weekly

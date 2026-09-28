@@ -2,7 +2,10 @@
 set -euo pipefail
 
 # Required environment variables:
-: "${POSTGRES_URI:?need to set POSTGRES_URI}"
+: "${PGHOST:?need to set PGHOST}"
+: "${PGPORT:?need to set PGPORT}"
+: "${PGUSER:?need to set PGUSER}"
+: "${PGPASSWORD:?need to set PGPASSWORD}"
 : "${GCS_BUCKET:?need to set GCS_BUCKET}"
 : "${GCS_FOLDER:?need to set GCS_FOLDER}"
 : "${GCS_SA_KEY_BASE64:?need to set GCS_SA_KEY_BASE64}"
@@ -13,7 +16,9 @@ ARCHIVE="/tmp/pgdumpall-${TS}.sql.gz"
 echo "[+] Dumping PostgreSQL → ${ARCHIVE}"
 # pg_dumpall keeps roles and every database in one plain sql stream, the same
 # "one file restores everything" property the mongo backup has.
-pg_dumpall --dbname="${POSTGRES_URI}" | gzip > "${ARCHIVE}"
+# Connection settings come from the libpq PG* env vars: pg_dumpall runs pg_dump
+# per database and drops the password from --dbname, but env vars are inherited.
+pg_dumpall | gzip > "${ARCHIVE}"
 
 # Authenticate to Google Cloud with the service account key (base64-encoded JSON).
 export CLOUDSDK_CONFIG=/tmp/gcloud
