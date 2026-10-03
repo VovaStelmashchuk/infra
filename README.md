@@ -215,11 +215,37 @@ with `gcloud storage cp`, authenticated by a service account key.
 Required GitHub configuration:
 - `GCS_BUCKET` (repository variable) - name of the GCS bucket
 - `GCS_SA_KEY_BASE64` (repository secret) - service account JSON key, base64 encoded (`base64 -i key.json | tr -d '\n'`).
-  The service account needs the `Storage Object Creator` role on the bucket.
+  The service account needs the `Storage Object Creator` role on the bucket, and
+  `Storage Object Viewer` as well to restore (list and download the backups).
 
 Postgres is backed up **weekly only** (`postgres-backup-weekly`, Tuesday 03:40 UTC).
 The job runs `pg_dumpall` and uploads one gzipped sql file to the `postgres-weekly`
 folder of the GCS bucket, see `postgres-backup/backup.sh`.
+
+### Restore
+
+Restoring is part of the infrastructure too: run the **Restore from backup** GitHub
+action (`.github/workflows/restore-backup.yml`) by hand. Inputs:
+
+- `target` - `mongo-daily`, `mongo-weekly`, `postgres`, `caddy` or `grafana`
+- `backup_file` - `latest`, a file name in the target's bucket folder
+  (`mongodump-2026-10-01_03-30.gz`) or a full `gs://` url
+- `confirm` - the target typed again, the current data is replaced
+
+Every backup image ships a `restore.sh` next to its `backup.sh`. The action ssh-es to
+`HOST` and runs `scripts/restore-on-host.sh`, which starts a one-off container from
+the image of the deployed backup service with that service's env, network and
+volumes. So the restore reads the same bucket folder with the same credentials, and
+no secret leaves GitHub. The stack has to be deployed first.
+
+| target   | what happens                                                                          |
+| -------- | ------------------------------------------------------------------------------------- |
+| mongo    | `mongorestore --drop` of the archive, collections in the backup are replaced          |
+| postgres | every database except `postgres` is dropped, the `public` schema of `postgres` is recreated, then the `pg_dumpall` file is replayed. `role ... already exists` errors in the log are expected |
+| caddy    | `caddy` is scaled to 0, the `caddy-data` volume is emptied and extracted, `caddy` is scaled back |
+| grafana  | `grafana` is scaled to 0, `grafana.db` is replaced, `grafana` is scaled back           |
+
+Moving to a new VPS: run **Setup VPS**, deploy the stack, then restore each target.
 
 ## Build & deploy
 

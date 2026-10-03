@@ -12,3 +12,6 @@ RUN gcloud --version
 
 COPY backup.sh /usr/local/bin/backup.sh
 RUN chmod +x /usr/local/bin/backup.sh
+
+COPY restore.sh /usr/local/bin/restore.sh
+RUN chmod +x /usr/local/bin/restore.sh
