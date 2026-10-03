@@ -41,11 +41,39 @@ ARCHIVE="${WORK_DIR}/$(basename "${OBJECT}")"
 echo "[+] Downloading ${OBJECT}"
 gcloud storage cp "${OBJECT}" "${ARCHIVE}"
 
-echo "[+] Restoring MongoDB (--drop replaces the collections in the backup)"
-mongorestore \
-  --uri="${MONGO_URI}" \
-  --drop \
-  --gzip \
-  --archive="${ARCHIVE}"
+wait_for_mongo() {
+  echo "[+] Waiting for MongoDB"
+  for _ in $(seq 1 60); do
+    if mongosh "${MONGO_URI}" --quiet --eval 'db.runCommand({ ping: 1 })' > /dev/null 2>&1; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "[!] MongoDB is not reachable"
+  return 1
+}
 
-echo "[+] Done."
+# One collection and one insert worker at a time: big collections (gridfs
+# chunks) restored in parallel push mongod out of memory on a small VPS, which
+# shows up as "connection reset by peer". --drop makes a rerun replace what a
+# failed attempt already wrote, so retrying is safe.
+MAX_ATTEMPTS=3
+for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+  wait_for_mongo
+  echo "[+] Restoring MongoDB, attempt ${attempt}/${MAX_ATTEMPTS} (--drop replaces the collections in the backup)"
+  if mongorestore \
+    --uri="${MONGO_URI}" \
+    --drop \
+    --gzip \
+    --numParallelCollections=1 \
+    --numInsertionWorkersPerCollection=1 \
+    --archive="${ARCHIVE}"; then
+    echo "[+] Done."
+    exit 0
+  fi
+  echo "[!] mongorestore failed"
+  sleep 10
+done
+
+echo "[!] Restore failed after ${MAX_ATTEMPTS} attempts, check: docker service ps infra_mongo-rs-1 --no-trunc"
+exit 1
