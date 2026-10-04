@@ -30,8 +30,16 @@ spec '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' > "${E
 echo "BACKUP_FILE=${BACKUP_FILE}" >> "${ENV_FILE}"
 
 RUN_ARGS=()
+# Only attachable networks can be joined by a plain container. The stack's
+# implicit default network is not attachable, services that use only it
+# (caddy, grafana backups) need no internal network, just internet access,
+# which the default bridge gives.
 for network in $(spec '{{range .Spec.TaskTemplate.Networks}}{{.Target}} {{end}}'); do
-  RUN_ARGS+=(--network "${network}")
+  if [ "$(docker network inspect "${network}" --format '{{.Attachable}}')" = "true" ]; then
+    RUN_ARGS+=(--network "${network}")
+  else
+    echo "[i] Skipping network ${network}, it is not attachable"
+  fi
 done
 while read -r mount; do
   [ -n "${mount}" ] && RUN_ARGS+=(-v "${mount}")
