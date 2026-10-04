@@ -1,8 +1,7 @@
 ---
 - name: Install Docker on Ubuntu
   vars:
-    docker_version: "5:27.5.1-1~ubuntu.24.04~noble"
-    containerd_version: "1.7.25-1"
+    docker_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
 
   hosts: all
   become: yes
@@ -22,15 +21,31 @@
           - lsb-release
         state: present
 
+    # apt-key is removed in newer Ubuntu releases, so store the key in a keyring
+    # file and reference it from a deb822 sources file via Signed-By.
+    - name: Create apt keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
     - name: Add Docker GPG key
-      apt_key:
+      get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
 
     - name: Add Docker repository
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
-        state: present
+      copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/ubuntu
+          Suites: {{ ansible_facts['distribution_release'] }}
+          Components: stable
+          Architectures: {{ docker_arch }}
+          Signed-By: /etc/apt/keyrings/docker.asc
 
     - name: Update apt cache after adding repository
       apt:
@@ -39,9 +54,9 @@
     - name: Install Docker CE
       apt:
         name:
-          - "docker-ce={{ docker_version }}"
-          - "docker-ce-cli={{ docker_version }}"
-          - "containerd.io={{ containerd_version }}"
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
         state: present
 
     - name: Start and enable Docker service

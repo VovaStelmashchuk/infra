@@ -1,4 +1,4 @@
-FROM mongo:8.2.9
+FROM mongo:8.3.9
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends apt-transport-https ca-certificates gnupg curl \
@@ -12,3 +12,6 @@ RUN gcloud --version
 
 COPY backup.sh /usr/local/bin/backup.sh
 RUN chmod +x /usr/local/bin/backup.sh
+
+COPY restore.sh /usr/local/bin/restore.sh
+RUN chmod +x /usr/local/bin/restore.sh

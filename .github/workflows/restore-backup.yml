@@ -1,0 +1,82 @@
+name: Restore from backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to restore"
+        required: true
+        type: choice
+        options:
+          - mongo-daily
+          - mongo-weekly
+          - postgres
+          - caddy
+          - grafana
+      backup_file:
+        description: "File name in the bucket folder (e.g. mongodump-2026-10-01_03-30.gz), a gs:// url, or latest"
+        required: true
+        default: "latest"
+        type: string
+      confirm:
+        description: "Type the target again to confirm, the current data is replaced"
+        required: true
+        type: string
+
+env:
+  DOCKER_STACK_NAME: infra
+  HOST: ${{ vars.HOST }}
+  USERNAME: ${{ vars.USERNAME }}
+  ROOT_SSH_PRIVATE_KEY: ${{ secrets.ROOT_SSH_PRIVATE_KEY }}
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    # One restore at a time, never cancel a running one halfway.
+    concurrency:
+      group: restore-backup
+      cancel-in-progress: false
+    steps:
+      - name: Check confirmation
+        if: inputs.confirm != inputs.target
+        run: |
+          echo "::error::Confirmation '${{ inputs.confirm }}' does not match target '${{ inputs.target }}'"
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Resolve backup service
+        id: target
+        run: |
+          # <backup service whose image/env/volumes are used> <service stopped during restore>
+          case "${{ inputs.target }}" in
+            mongo-daily)  echo "backup=mongo-rs-backup-daily"  >> "$GITHUB_OUTPUT" ;;
+            mongo-weekly) echo "backup=mongo-rs-backup-weekly" >> "$GITHUB_OUTPUT" ;;
+            postgres)     echo "backup=postgres-backup-weekly" >> "$GITHUB_OUTPUT" ;;
+            caddy)        echo "backup=caddy-backup-daily"     >> "$GITHUB_OUTPUT"
+                          echo "stop=caddy"                    >> "$GITHUB_OUTPUT" ;;
+            grafana)      echo "backup=grafana-backup-daily"   >> "$GITHUB_OUTPUT"
+                          echo "stop=grafana"                  >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ env.ROOT_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ env.HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Restore
+        env:
+          BACKUP_FILE: ${{ inputs.backup_file }}
+        run: |
+          # The value ends up in a remote shell command, only allow plain paths.
+          if ! [[ "${BACKUP_FILE}" =~ ^[A-Za-z0-9._:/-]+$ ]]; then
+            echo "::error::Invalid backup_file '${BACKUP_FILE}'"
+            exit 1
+          fi
+          ssh -i ~/.ssh/id_rsa "${USERNAME}@${HOST}" \
+            STACK="${DOCKER_STACK_NAME}" bash -s -- \
+            "'${{ steps.target.outputs.backup }}'" "'${BACKUP_FILE}'" "'${{ steps.target.outputs.stop }}'" \
+            < scripts/restore-on-host.sh
