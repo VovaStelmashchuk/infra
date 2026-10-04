@@ -5,14 +5,6 @@
         }
 }
 
-(maintenance) {
-	handle {
-		root * /etc/caddy
-		rewrite * /maintenance.html
-		file_server
-	}
-}
-
 compass.stelmashchuk.dev {
         reverse_proxy * infra_mongo-rs-viewer:8080
 }
@@ -27,10 +19,6 @@ mixdrinks.org {
 
 www.mixdrinks.org {
         redir https://mixdrinks.org{uri}
-}
-
-stelmashchuk.dev {
-        reverse_proxy * cv_app:3000
 }
 
 ypod.stelmashchuk.dev {
@@ -49,13 +37,6 @@ hardandsoft.stelmashchuk.dev {
         }
 }
 
-podcast.stelmashchuk.dev {
-        reverse_proxy * ypod_app:3000 {
-                header_up Host "podcast.stelmashchuk.dev"
-                header_up X-Real-IP {remote_host}
-        }
-}
-
 nest2d.stelmashchuk.dev {
         reverse_proxy * nest2d_app:3000
 }
@@ -64,20 +45,7 @@ pdf.stelmashchuk.dev {
         reverse_proxy * label-generator_app:3000
 }
 
-kickstart.stelmashchuk.dev {
-        redir https://velonuxt.stelmashchuk.dev{uri}
-}
-
-velonuxt.stelmashchuk.dev {
-        reverse_proxy * velonuxt_app:3000 {
-                header_up X-Real-IP {remote_host}
-        }
-}
-
 grafana.stelmashchuk.dev {
         reverse_proxy * infra_grafana:3000
 }
 
-maintenance.stelmashchuk.dev {
-	import maintenance
-}
