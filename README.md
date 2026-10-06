@@ -2,22 +2,21 @@
 
 We build real **uncloud** here.
 
-The project with all scripts for setup an infrastructure for simple pet project, without over engineering, but with all required components, such as backups for database, backup for reverse proxy etc.
+The project includes all scripts for setting up infrastructure for a simple pet project, without over-engineering, but with all required components, such as backups for the database, backups for the reverse proxy, etc.
 
-The project prepares VPS for hosting docker stack by Ansible scripts. All infrastructure components deploy as docker services. Also configuration provides presetup docker networks. 
+The project prepares a VPS for hosting a Docker stack using Ansible scripts. All infrastructure components are deployed as Docker services. Also, the configuration provides pre-set Docker networks. 
 
-So basicly you just rent any VPS or setup the ubunut server your self, and have it up and running for few minutes.
+Basically, you can rent any VPS or set up an Ubuntu server yourself and have it up and running in a few minutes.
 
-The project provides all infrastruture require to implement simple pet projects without over engineering. All setup of VPS done with infrastructure as code approatch which help you replicate the infra on any ubuntu server without pain.
+The project provides all infrastructure required to implement simple pet projects without over-engineering. All VPS setup uses an infrastructure-as-code approach, so you can replicate the infrastructure on any Ubuntu server with minimal effort.
 
 The infrastructure includes the following:
 - Docker Swarm
-- MongoDB replica set
 - PostgreSQL with pgAdmin
 - Caddy reverse proxy
 - Grafana
 - Centralized logs for every container (Loki + Grafana Alloy)
-- Periodic backups for mongo, postgres, grafana, caddy config
+- Periodic backups for Postgres, Grafana, Caddy config
 
 ## Infrastructure components
 
