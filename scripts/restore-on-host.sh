@@ -32,7 +32,7 @@ echo "BACKUP_FILE=${BACKUP_FILE}" >> "${ENV_FILE}"
 RUN_ARGS=()
 # Only attachable networks can be joined by a plain container. The stack's
 # implicit default network is not attachable, services that use only it
-# (caddy, grafana backups) need no internal network, just internet access,
+# (grafana backup) need no internal network, just internet access,
 # which the default bridge gives.
 for network in $(spec '{{range .Spec.TaskTemplate.Networks}}{{.Target}} {{end}}'); do
   if [ "$(docker network inspect "${network}" --format '{{.Attachable}}')" = "true" ]; then

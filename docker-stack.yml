@@ -254,29 +254,6 @@ services:
       restart_policy:
         condition: none
 
-  caddy-backup-daily:
-    image: ghcr.io/${OWNER_NAME}/caddy-backup:${GIT_COMMIT_SHA}
-    command: ["/usr/local/bin/backup.sh"]
-    depends_on:
-      - cron
-      - caddy
-    environment:
-      - CADDY_DATA_DIR=/caddy_storage
-      - GCS_BUCKET=${GCS_BUCKET}
-      - GCS_SA_KEY_BASE64=${GCS_SA_KEY_BASE64}
-      - GCS_FOLDER=caddy-daily
-    volumes:
-      - caddy-data:/caddy_storage
-    deploy:
-      mode: replicated
-      replicas: 0
-      labels:
-        - "swarm.cronjob.enable=true"
-        - "swarm.cronjob.schedule=0 5 * * *"
-        - "swarm.cronjob.skip-running=true"
-      restart_policy:
-        condition: none
-
   caddy:
     image: ghcr.io/${OWNER_NAME}/caddy:${GIT_COMMIT_SHA}
     dns:

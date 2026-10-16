@@ -11,7 +11,6 @@ on:
           - mongo-daily
           - mongo-weekly
           - postgres
-          - caddy
           - grafana
       backup_file:
         description: "File name in the bucket folder (e.g. mongodump-2026-10-01_03-30.gz), a gs:// url, or latest"
@@ -54,8 +53,6 @@ jobs:
             mongo-daily)  echo "backup=mongo-rs-backup-daily"  >> "$GITHUB_OUTPUT" ;;
             mongo-weekly) echo "backup=mongo-rs-backup-weekly" >> "$GITHUB_OUTPUT" ;;
             postgres)     echo "backup=postgres-backup-weekly" >> "$GITHUB_OUTPUT" ;;
-            caddy)        echo "backup=caddy-backup-daily"     >> "$GITHUB_OUTPUT"
-                          echo "stop=caddy"                    >> "$GITHUB_OUTPUT" ;;
             grafana)      echo "backup=grafana-backup-daily"   >> "$GITHUB_OUTPUT"
                           echo "stop=grafana"                  >> "$GITHUB_OUTPUT" ;;
           esac

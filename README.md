@@ -16,7 +16,7 @@ The infrastructure includes the following:
 - Caddy reverse proxy
 - Grafana
 - Centralized logs for every container (Loki + Grafana Alloy)
-- Periodic backups for Postgres, Grafana, Caddy config
+- Periodic backups for Mongo, Postgres, Grafana
 
 ## Infrastructure components
 
@@ -203,12 +203,12 @@ A few things worth knowing:
 
 ### Periodic tasks
 
-The `infra` stack has the cron executor `crazymax/swarm-cronjob` which is used for periodic backup database and caddy config
+The `infra` stack has the cron executor `crazymax/swarm-cronjob` which is used for periodic backups
 
 ### Backups
 
-The project provides periodic backups for mongo, postgres and caddy config.
-Mongo is backed up daily and weekly, caddy and grafana daily. All backups are uploaded to a Google Cloud Storage bucket
+The project provides periodic backups for mongo, postgres and grafana.
+Mongo is backed up daily and weekly, grafana daily. All backups are uploaded to a Google Cloud Storage bucket
 with `gcloud storage cp`, authenticated by a service account key.
 
 Required GitHub configuration:
@@ -226,7 +226,7 @@ folder of the GCS bucket, see `postgres-backup/backup.sh`.
 Restoring is part of the infrastructure too: run the **Restore from backup** GitHub
 action (`.github/workflows/restore-backup.yml`) by hand. Inputs:
 
-- `target` - `mongo-daily`, `mongo-weekly`, `postgres`, `caddy` or `grafana`
+- `target` - `mongo-daily`, `mongo-weekly`, `postgres` or `grafana`
 - `backup_file` - `latest`, a file name in the target's bucket folder
   (`mongodump-2026-10-01_03-30.gz`) or a full `gs://` url
 - `confirm` - the target typed again, the current data is replaced
@@ -241,7 +241,6 @@ no secret leaves GitHub. The stack has to be deployed first.
 | -------- | ------------------------------------------------------------------------------------- |
 | mongo    | `mongorestore --drop` of the archive, collections in the backup are replaced          |
 | postgres | every database except `postgres` is dropped, the `public` schema of `postgres` is recreated, then the `pg_dumpall` file is replayed. `role ... already exists` errors in the log are expected |
-| caddy    | `caddy` is scaled to 0, the `caddy-data` volume is emptied and extracted, `caddy` is scaled back |
 | grafana  | `grafana` is scaled to 0, `grafana.db` is replaced, `grafana` is scaled back           |
 
 Moving to a new VPS: run **Setup VPS**, deploy the stack, then restore each target.

@@ -37,9 +37,6 @@ jobs:
           - name: caddy
             context: ./caddy
             image: caddy
-          - name: caddy-backup
-            context: ./caddy-backup
-            image: caddy-backup
           - name: grafana
             context: ./grafana
             image: grafana
