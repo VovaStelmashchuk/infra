@@ -1,33 +1,34 @@
 {
         email vovochkastelmashchuk@gmail.com
+        auto_https disable_redirects
         storage file_system {
                 root /caddy_storage/
         }
 }
 
-compass.stelmashchuk.dev {
+http://compass.stelmashchuk.dev, https://compass.stelmashchuk.dev {
         reverse_proxy * infra_mongo-rs-viewer:8080
 }
 
-pgadmin.stelmashchuk.dev {
+http://pgadmin.stelmashchuk.dev, https://pgadmin.stelmashchuk.dev {
         reverse_proxy * infra_pgadmin:5050
 }
 
-mixdrinks.org {
+http://mixdrinks.org, https://mixdrinks.org {
         reverse_proxy * mixdrinks_app:3000
 }
 
-www.mixdrinks.org {
+http://www.mixdrinks.org, https://www.mixdrinks.org {
         redir https://mixdrinks.org{uri}
 }
 
-ypod.stelmashchuk.dev {
+http://ypod.stelmashchuk.dev, https://ypod.stelmashchuk.dev {
         reverse_proxy * ypod_app:3000 {
                 header_up X-Real-IP {remote_host}
         }
 }
 
-hardandsoft.stelmashchuk.dev {
+http://hardandsoft.stelmashchuk.dev, https://hardandsoft.stelmashchuk.dev {
         rewrite /files/rss.xml /api/podcast/android-story/rss.xml
         rewrite /rss.xml /api/podcast/android-story/rss.xml
 
@@ -37,15 +38,15 @@ hardandsoft.stelmashchuk.dev {
         }
 }
 
-nest2d.stelmashchuk.dev {
+http://nest2d.stelmashchuk.dev, https://nest2d.stelmashchuk.dev {
         reverse_proxy * nest2d_app:3000
 }
 
-pdf.stelmashchuk.dev {
+http://pdf.stelmashchuk.dev, https://pdf.stelmashchuk.dev {
         reverse_proxy * label-generator_app:3000
 }
 
-grafana.stelmashchuk.dev {
+http://grafana.stelmashchuk.dev, https://grafana.stelmashchuk.dev {
         reverse_proxy * infra_grafana:3000
 }
 
